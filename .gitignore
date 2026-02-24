@@ -1,0 +1,17 @@
+# 环境与密钥（切勿提交）
+.env
+.env.local
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# 可选
+.venv/
+venv/
+*.log
