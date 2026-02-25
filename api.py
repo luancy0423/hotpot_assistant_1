@@ -307,7 +307,7 @@ class HotpotAssistantAPI:
         
         Args:
             ingredient_names: 食材名称列表
-            broth_type: 锅底类型 (SPICY/CLEAR/TOMATO/MUSHROOM/BONE)
+            broth_type: 锅底类型 (SPICY/CLEAR/TOMATO/MUSHROOM/BONE/COMBO)
             texture: 口感偏好 (CRISPY/TENDER/SOFT/STANDARD)
             user_mode: 用户模式 (NORMAL/ELDERLY/CHILD/QUICK)
             allergens_to_avoid: 需要避免的过敏原

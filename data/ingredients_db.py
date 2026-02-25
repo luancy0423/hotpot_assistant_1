@@ -35,6 +35,7 @@ class BrothType(Enum):
     TOMATO = "番茄"
     MUSHROOM = "菌汤"
     BONE = "骨汤"
+    COMBO = "鸳鸯锅"
 
 @dataclass
 class CookingRule:
@@ -717,6 +718,942 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         nutrition=NutritionInfo(purine_level="低", calories_per_100g=158),
         dipping_sauce=["干碟", "麻酱"],
         priority=35
+    ),
+
+    # ========== 扩充：肉类 ==========
+    "zhuwuhua": Ingredient(
+        id="zhuwuhua",
+        name="猪五花",
+        aliases=["五花肉", "猪五花肉", "三层肉"],
+        category=Category.MEAT,
+        cooking_rule=CookingRule(
+            base_seconds=45,
+            crispy_seconds=30,
+            tender_seconds=45,
+            soft_seconds=90,
+            min_safe_seconds=30,
+            technique="薄切涮至变色卷曲",
+            warning="肥肉多，不宜久煮易化"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=518),
+        dipping_sauce=["蒜泥", "干碟"],
+        priority=36
+    ),
+    "meihuaron": Ingredient(
+        id="meihuaron",
+        name="梅花肉",
+        aliases=["猪梅花", "上肩肉", "胛心肉"],
+        category=Category.MEAT,
+        cooking_rule=CookingRule(
+            base_seconds=25,
+            crispy_seconds=15,
+            tender_seconds=25,
+            soft_seconds=50,
+            min_safe_seconds=15,
+            technique="涮至变色即可，嫩而不柴"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=242),
+        dipping_sauce=["沙茶酱", "蒜泥香油"],
+        priority=34
+    ),
+    "zhuliji": Ingredient(
+        id="zhuliji",
+        name="猪里脊",
+        aliases=["里脊肉", "通脊"],
+        category=Category.MEAT,
+        cooking_rule=CookingRule(
+            base_seconds=20,
+            crispy_seconds=12,
+            tender_seconds=20,
+            soft_seconds=40,
+            min_safe_seconds=12,
+            technique="薄切快涮，变色即捞"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=143),
+        dipping_sauce=["麻酱", "蒜泥"],
+        priority=37
+    ),
+    "jixiongrou": Ingredient(
+        id="jixiongrou",
+        name="鸡胸肉",
+        aliases=["鸡胸", "鸡柳"],
+        category=Category.MEAT,
+        cooking_rule=CookingRule(
+            base_seconds=90,
+            crispy_seconds=60,
+            tender_seconds=90,
+            soft_seconds=150,
+            min_safe_seconds=60,
+            technique="切片薄一点，煮至全白",
+            warning="久煮易柴"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=133),
+        dipping_sauce=["麻酱", "干碟"],
+        priority=50
+    ),
+    "jituirou": Ingredient(
+        id="jituirou",
+        name="鸡腿肉",
+        aliases=["鸡腿", "去骨鸡腿"],
+        category=Category.MEAT,
+        cooking_rule=CookingRule(
+            base_seconds=120,
+            crispy_seconds=90,
+            tender_seconds=120,
+            soft_seconds=180,
+            min_safe_seconds=90,
+            technique="切块或片，煮至无血水"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=209),
+        dipping_sauce=["麻酱", "辣椒酱"],
+        priority=48
+    ),
+    "wujijuan": Ingredient(
+        id="wujijuan",
+        name="乌鸡卷",
+        aliases=["乌鸡肉卷", "乌鸡片"],
+        category=Category.MEAT,
+        cooking_rule=CookingRule(
+            base_seconds=15,
+            crispy_seconds=10,
+            tender_seconds=15,
+            soft_seconds=30,
+            min_safe_seconds=10,
+            technique="涮至变色即可"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=111),
+        dipping_sauce=["麻酱", "蒜泥"],
+        priority=40
+    ),
+    "zhujingrou": Ingredient(
+        id="zhujingrou",
+        name="猪颈肉",
+        aliases=["松板肉", "雪花肉"],
+        category=Category.MEAT,
+        cooking_rule=CookingRule(
+            base_seconds=25,
+            crispy_seconds=15,
+            tender_seconds=25,
+            soft_seconds=50,
+            min_safe_seconds=15,
+            technique="涮至变色，口感弹嫩"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=242),
+        dipping_sauce=["蒜泥", "干碟"],
+        priority=35
+    ),
+
+    # ========== 扩充：内脏类 ==========
+    "niudu": Ingredient(
+        id="niudu",
+        name="牛肚",
+        aliases=["牛肚片", "金钱肚", "蜂窝肚"],
+        category=Category.OFFAL,
+        cooking_rule=CookingRule(
+            base_seconds=120,
+            crispy_seconds=90,
+            tender_seconds=120,
+            soft_seconds=240,
+            min_safe_seconds=90,
+            technique="厚切需多煮，煮至软糯",
+            warning="未煮透难嚼"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=72),
+        dipping_sauce=["香油蒜泥", "干碟"],
+        priority=18
+    ),
+    "zhugan": Ingredient(
+        id="zhugan",
+        name="猪肝",
+        aliases=["鲜猪肝", "肝片"],
+        category=Category.OFFAL,
+        cooking_rule=CookingRule(
+            base_seconds=45,
+            crispy_seconds=30,
+            tender_seconds=45,
+            soft_seconds=90,
+            min_safe_seconds=30,
+            technique="薄切快涮，变色即捞，保持嫩滑",
+            warning="煮老会发硬；高胆固醇少食"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=135),
+        dipping_sauce=["干碟", "蒜泥"],
+        priority=38
+    ),
+    "yaohua": Ingredient(
+        id="yaohua",
+        name="腰花",
+        aliases=["猪腰", "腰片", "爆炒腰花"],
+        category=Category.OFFAL,
+        cooking_rule=CookingRule(
+            base_seconds=30,
+            crispy_seconds=20,
+            tender_seconds=30,
+            soft_seconds=60,
+            min_safe_seconds=20,
+            technique="改花刀涮烫，卷曲即熟",
+            warning="去净腰臊，煮老会韧"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=99),
+        dipping_sauce=["干碟", "香油蒜泥"],
+        priority=28
+    ),
+    "jizhen": Ingredient(
+        id="jizhen",
+        name="鸡胗",
+        aliases=["鸡肫", "胗子"],
+        category=Category.OFFAL,
+        cooking_rule=CookingRule(
+            base_seconds=60,
+            crispy_seconds=45,
+            tender_seconds=60,
+            soft_seconds=120,
+            min_safe_seconds=45,
+            technique="切片或改花，煮至脆弹"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=94),
+        dipping_sauce=["干碟", "香油"],
+        priority=32
+    ),
+    "yazhen": Ingredient(
+        id="yazhen",
+        name="鸭胗",
+        aliases=["鸭肫"],
+        category=Category.OFFAL,
+        cooking_rule=CookingRule(
+            base_seconds=60,
+            crispy_seconds=45,
+            tender_seconds=60,
+            soft_seconds=120,
+            min_safe_seconds=45,
+            technique="切片涮至脆嫩"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=92),
+        dipping_sauce=["干碟", "蒜泥"],
+        priority=33
+    ),
+    "echang": Ingredient(
+        id="echang",
+        name="鹅肠",
+        aliases=["鲜鹅肠", "鹅肠"],
+        category=Category.OFFAL,
+        cooking_rule=CookingRule(
+            base_seconds=15,
+            crispy_seconds=10,
+            tender_seconds=15,
+            soft_seconds=25,
+            min_safe_seconds=10,
+            technique="七上八下，卷曲即捞",
+            warning="久煮变韧"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=129),
+        dipping_sauce=["香油蒜泥", "干碟"],
+        priority=21
+    ),
+
+    # ========== 扩充：海鲜类 ==========
+    "yupian": Ingredient(
+        id="yupian",
+        name="鱼片",
+        aliases=["生鱼片", "黑鱼片", "草鱼片", "龙利鱼片", "巴沙鱼片"],
+        category=Category.SEAFOOD,
+        cooking_rule=CookingRule(
+            base_seconds=30,
+            crispy_seconds=20,
+            tender_seconds=30,
+            soft_seconds=60,
+            min_safe_seconds=20,
+            technique="薄片涮至变白卷曲",
+            warning="必须熟透防寄生虫"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=88, allergens=["鱼"]),
+        dipping_sauce=["芥末酱油", "蒜泥"],
+        priority=42
+    ),
+    "youyu": Ingredient(
+        id="youyu",
+        name="鱿鱼",
+        aliases=["鲜鱿鱼", "鱿鱼片", "鱿鱼花"],
+        category=Category.SEAFOOD,
+        cooking_rule=CookingRule(
+            base_seconds=45,
+            crispy_seconds=30,
+            tender_seconds=45,
+            soft_seconds=90,
+            min_safe_seconds=30,
+            technique="改花刀涮至卷曲变白",
+            warning="煮老会韧"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=92),
+        dipping_sauce=["芥末酱油", "蒜泥"],
+        priority=44
+    ),
+    "moyu": Ingredient(
+        id="moyu",
+        name="墨鱼",
+        aliases=["墨鱼片", "乌贼", "花枝"],
+        category=Category.SEAFOOD,
+        cooking_rule=CookingRule(
+            base_seconds=50,
+            crispy_seconds=35,
+            tender_seconds=50,
+            soft_seconds=100,
+            min_safe_seconds=35,
+            technique="涮至变白卷曲"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=79),
+        dipping_sauce=["芥末酱油"],
+        priority=43
+    ),
+    "xiebang": Ingredient(
+        id="xiebang",
+        name="蟹棒",
+        aliases=["蟹柳", "模拟蟹肉"],
+        category=Category.SEAFOOD,
+        cooking_rule=CookingRule(
+            base_seconds=60,
+            crispy_seconds=45,
+            tender_seconds=60,
+            soft_seconds=120,
+            min_safe_seconds=45,
+            technique="煮热即可，久煮易散"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=95, allergens=["鱼", "蟹"]),
+        dipping_sauce=["芥末酱油", "甜辣酱"],
+        priority=46
+    ),
+    "shanbei": Ingredient(
+        id="shanbei",
+        name="扇贝",
+        aliases=["鲜贝", "带子", "扇贝肉"],
+        category=Category.SEAFOOD,
+        cooking_rule=CookingRule(
+            base_seconds=90,
+            crispy_seconds=60,
+            tender_seconds=90,
+            soft_seconds=150,
+            min_safe_seconds=60,
+            technique="煮至贝肉变白不透明",
+            warning="必须熟透"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=88),
+        dipping_sauce=["蒜泥", "芥末酱油"],
+        priority=47
+    ),
+    "huajia": Ingredient(
+        id="huajia",
+        name="花甲",
+        aliases=["花蛤", "蛤蜊", "文蛤"],
+        category=Category.SEAFOOD,
+        cooking_rule=CookingRule(
+            base_seconds=120,
+            crispy_seconds=90,
+            tender_seconds=120,
+            soft_seconds=180,
+            min_safe_seconds=90,
+            technique="开口即熟，吐沙干净再下锅",
+            warning="必须开口且熟透"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=45),
+        dipping_sauce=["蒜泥", "姜醋"],
+        priority=52
+    ),
+    "chengzi": Ingredient(
+        id="chengzi",
+        name="蛏子",
+        aliases=["蛏子皇", "竹蛏"],
+        category=Category.SEAFOOD,
+        cooking_rule=CookingRule(
+            base_seconds=90,
+            crispy_seconds=60,
+            tender_seconds=90,
+            soft_seconds=150,
+            min_safe_seconds=60,
+            technique="开口即熟，吐沙后下锅"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=66),
+        dipping_sauce=["姜醋", "蒜泥"],
+        priority=51
+    ),
+
+    # ========== 扩充：丸滑类 ==========
+    "xiawan": Ingredient(
+        id="xiawan",
+        name="虾丸",
+        aliases=["鲜虾丸", "龙虾丸"],
+        category=Category.MEATBALL,
+        cooking_rule=CookingRule(
+            base_seconds=120,
+            crispy_seconds=90,
+            tender_seconds=120,
+            soft_seconds=180,
+            min_safe_seconds=90,
+            technique="浮起后再煮约1分钟",
+            warning="含虾过敏者注意"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=119, allergens=["虾"]),
+        dipping_sauce=["芥末酱油", "沙茶酱"],
+        priority=20
+    ),
+    "yudoufu": Ingredient(
+        id="yudoufu",
+        name="鱼豆腐",
+        aliases=["鱼饼", "鱼板"],
+        category=Category.MEATBALL,
+        cooking_rule=CookingRule(
+            base_seconds=90,
+            crispy_seconds=60,
+            tender_seconds=90,
+            soft_seconds=150,
+            min_safe_seconds=60,
+            technique="煮至膨胀浮起"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=108, allergens=["鱼"]),
+        dipping_sauce=["甜辣酱", "麻酱"],
+        priority=22
+    ),
+    "saniaoniuwan": Ingredient(
+        id="saniaoniuwan",
+        name="撒尿牛丸",
+        aliases=["爆浆牛丸", "潮汕牛丸"],
+        category=Category.MEATBALL,
+        cooking_rule=CookingRule(
+            base_seconds=180,
+            crispy_seconds=150,
+            tender_seconds=180,
+            soft_seconds=240,
+            min_safe_seconds=150,
+            technique="浮起后多煮1-2分钟，小心烫口",
+            warning="内馅烫，咬开注意"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=250),
+        dipping_sauce=["沙茶酱", "辣椒酱"],
+        priority=16
+    ),
+    "moyuwan": Ingredient(
+        id="moyuwan",
+        name="墨鱼丸",
+        aliases=["墨鱼球", "花枝丸"],
+        category=Category.MEATBALL,
+        cooking_rule=CookingRule(
+            base_seconds=150,
+            crispy_seconds=120,
+            tender_seconds=150,
+            soft_seconds=200,
+            min_safe_seconds=120,
+            technique="浮起后煮约1分钟"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=94),
+        dipping_sauce=["芥末酱油", "甜辣酱"],
+        priority=19
+    ),
+    "yuzifudai": Ingredient(
+        id="yuzifudai",
+        name="鱼籽福袋",
+        aliases=["福袋", "豆皮福袋"],
+        category=Category.MEATBALL,
+        cooking_rule=CookingRule(
+            base_seconds=180,
+            crispy_seconds=120,
+            tender_seconds=180,
+            soft_seconds=240,
+            min_safe_seconds=120,
+            technique="煮至豆皮软、内馅热透"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=140, allergens=["鱼"]),
+        dipping_sauce=["甜辣酱", "麻酱"],
+        priority=24
+    ),
+    "zhishiwan": Ingredient(
+        id="zhishiwan",
+        name="芝士丸",
+        aliases=["芝士心鱼丸", "拉丝丸"],
+        category=Category.MEATBALL,
+        cooking_rule=CookingRule(
+            base_seconds=120,
+            crispy_seconds=90,
+            tender_seconds=120,
+            soft_seconds=180,
+            min_safe_seconds=90,
+            technique="浮起后煮1分钟，小心爆浆烫口"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=280),
+        dipping_sauce=["直接吃"],
+        priority=26
+    ),
+
+    # ========== 扩充：蔬菜类 ==========
+    "wawacai": Ingredient(
+        id="wawacai",
+        name="娃娃菜",
+        aliases=["迷你白菜", "袖珍白菜"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=90,
+            crispy_seconds=60,
+            tender_seconds=90,
+            soft_seconds=180,
+            min_safe_seconds=45,
+            technique="对半或整棵，煮软入味"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=13),
+        dipping_sauce=["麻酱", "蒜泥"],
+        priority=62
+    ),
+    "youmaicai": Ingredient(
+        id="youmaicai",
+        name="油麦菜",
+        aliases=["莜麦菜", "凤尾"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=20,
+            crispy_seconds=12,
+            tender_seconds=20,
+            soft_seconds=45,
+            min_safe_seconds=12,
+            technique="烫软即可，保持翠绿"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=15),
+        dipping_sauce=["麻酱", "蒜泥"],
+        priority=78
+    ),
+    "tonghao": Ingredient(
+        id="tonghao",
+        name="茼蒿",
+        aliases=["皇帝菜", "蓬蒿"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=30,
+            crispy_seconds=20,
+            tender_seconds=30,
+            soft_seconds=60,
+            min_safe_seconds=15,
+            technique="烫软即起，香味浓"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=24),
+        dipping_sauce=["麻酱", "蒜泥"],
+        priority=75
+    ),
+    "doumiao": Ingredient(
+        id="doumiao",
+        name="豆苗",
+        aliases=["豌豆苗", "豌豆尖"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=15,
+            crispy_seconds=8,
+            tender_seconds=15,
+            soft_seconds=30,
+            min_safe_seconds=8,
+            technique="快烫即起，保持嫩绿"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=32),
+        dipping_sauce=["麻酱", "直接吃"],
+        priority=84
+    ),
+    "luobo": Ingredient(
+        id="luobo",
+        name="萝卜",
+        aliases=["白萝卜", "水萝卜", "萝卜块"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=300,
+            crispy_seconds=180,
+            tender_seconds=300,
+            soft_seconds=480,
+            min_safe_seconds=150,
+            technique="切块或厚片，煮至透明入味"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=16),
+        dipping_sauce=["麻酱", "干碟"],
+        priority=45
+    ),
+    "yumi": Ingredient(
+        id="yumi",
+        name="玉米",
+        aliases=["甜玉米", "玉米段", "糯玉米"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=300,
+            crispy_seconds=240,
+            tender_seconds=300,
+            soft_seconds=480,
+            min_safe_seconds=180,
+            technique="切段下锅，煮至软糯"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=86),
+        dipping_sauce=["直接吃", "黄油"],
+        priority=55
+    ),
+    "nangua": Ingredient(
+        id="nangua",
+        name="南瓜",
+        aliases=["南瓜块", "贝贝南瓜"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=300,
+            crispy_seconds=180,
+            tender_seconds=300,
+            soft_seconds=480,
+            min_safe_seconds=150,
+            technique="煮至软糯，甜味析出"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=26),
+        dipping_sauce=["直接吃", "炼乳"],
+        priority=58
+    ),
+    "shanyao": Ingredient(
+        id="shanyao",
+        name="山药",
+        aliases=["淮山", "铁棍山药", "山药片"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=180,
+            crispy_seconds=120,
+            tender_seconds=180,
+            soft_seconds=300,
+            min_safe_seconds=90,
+            technique="切薄片或段，煮至微软"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=65),
+        dipping_sauce=["麻酱", "蓝莓酱"],
+        priority=54
+    ),
+    "muer": Ingredient(
+        id="muer",
+        name="木耳",
+        aliases=["黑木耳", "云耳", "秋耳"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=120,
+            crispy_seconds=90,
+            tender_seconds=120,
+            soft_seconds=200,
+            min_safe_seconds=60,
+            technique="泡发后下锅，煮至软滑"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=27),
+        dipping_sauce=["麻酱", "醋"],
+        priority=53
+    ),
+    "huanggua": Ingredient(
+        id="huanggua",
+        name="黄瓜",
+        aliases=["青瓜", "黄瓜片"],
+        category=Category.VEGETABLE,
+        cooking_rule=CookingRule(
+            base_seconds=60,
+            crispy_seconds=30,
+            tender_seconds=60,
+            soft_seconds=120,
+            min_safe_seconds=30,
+            technique="薄片快涮，保持脆爽"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=15),
+        dipping_sauce=["蒜泥", "麻酱"],
+        priority=72
+    ),
+
+    # ========== 扩充：豆制品 ==========
+    "youdoupi": Ingredient(
+        id="youdoupi",
+        name="油豆皮",
+        aliases=["豆皮", "腐皮", "响铃卷"],
+        category=Category.TOFU,
+        cooking_rule=CookingRule(
+            base_seconds=30,
+            crispy_seconds=15,
+            tender_seconds=30,
+            soft_seconds=60,
+            min_safe_seconds=15,
+            technique="涮几秒即软，不宜久煮易烂"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=409),
+        dipping_sauce=["麻酱", "干碟"],
+        priority=68
+    ),
+    "dongdoufu": Ingredient(
+        id="dongdoufu",
+        name="冻豆腐",
+        aliases=["冻豆腐块", "蜂窝豆腐"],
+        category=Category.TOFU,
+        cooking_rule=CookingRule(
+            base_seconds=180,
+            crispy_seconds=120,
+            tender_seconds=180,
+            soft_seconds=300,
+            min_safe_seconds=90,
+            technique="煮至吸饱汤汁，内部热透"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=76),
+        dipping_sauce=["麻酱", "韭花"],
+        priority=38
+    ),
+    "qianzhang": Ingredient(
+        id="qianzhang",
+        name="千张",
+        aliases=["百叶", "豆腐皮", "干豆腐"],
+        category=Category.TOFU,
+        cooking_rule=CookingRule(
+            base_seconds=90,
+            crispy_seconds=60,
+            tender_seconds=90,
+            soft_seconds=180,
+            min_safe_seconds=60,
+            technique="切条或打结，煮至入味"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=160),
+        dipping_sauce=["麻酱", "辣椒油"],
+        priority=52
+    ),
+    "doufupao": Ingredient(
+        id="doufupao",
+        name="豆腐泡",
+        aliases=["油豆腐", "豆泡"],
+        category=Category.TOFU,
+        cooking_rule=CookingRule(
+            base_seconds=120,
+            crispy_seconds=90,
+            tender_seconds=120,
+            soft_seconds=200,
+            min_safe_seconds=60,
+            technique="煮至吸汁变软"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=245),
+        dipping_sauce=["麻酱", "腐乳"],
+        priority=56
+    ),
+
+    # ========== 扩充：菌菇类 ==========
+    "xingbaogu": Ingredient(
+        id="xingbaogu",
+        name="杏鲍菇",
+        aliases=["杏鲍菇片", "鸡腿菇"],
+        category=Category.MUSHROOM,
+        cooking_rule=CookingRule(
+            base_seconds=180,
+            crispy_seconds=120,
+            tender_seconds=180,
+            soft_seconds=300,
+            min_safe_seconds=90,
+            technique="切厚片，煮至软弹"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=31),
+        dipping_sauce=["麻酱", "干碟"],
+        priority=46
+    ),
+    "baiyugu": Ingredient(
+        id="baiyugu",
+        name="白玉菇",
+        aliases=["白玉菇", "蟹味菇"],
+        category=Category.MUSHROOM,
+        cooking_rule=CookingRule(
+            base_seconds=120,
+            crispy_seconds=90,
+            tender_seconds=120,
+            soft_seconds=180,
+            min_safe_seconds=90,
+            technique="整棵或切根，煮软即可"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=28),
+        dipping_sauce=["麻酱"],
+        priority=52
+    ),
+    "chashugu": Ingredient(
+        id="chashugu",
+        name="茶树菇",
+        aliases=["茶薪菇", "柳松菇"],
+        category=Category.MUSHROOM,
+        cooking_rule=CookingRule(
+            base_seconds=240,
+            crispy_seconds=180,
+            tender_seconds=240,
+            soft_seconds=360,
+            min_safe_seconds=180,
+            technique="泡发或鲜品，煮至软韧"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=31),
+        dipping_sauce=["麻酱", "干碟"],
+        priority=42
+    ),
+    "koumo": Ingredient(
+        id="koumo",
+        name="口蘑",
+        aliases=["白蘑菇", "双孢菇"],
+        category=Category.MUSHROOM,
+        cooking_rule=CookingRule(
+            base_seconds=150,
+            crispy_seconds=120,
+            tender_seconds=150,
+            soft_seconds=240,
+            min_safe_seconds=90,
+            technique="整颗或对半，煮至入味"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=22),
+        dipping_sauce=["麻酱", "黑椒"],
+        priority=50
+    ),
+
+    # ========== 扩充：主食类 ==========
+    "longkoufensi": Ingredient(
+        id="longkoufensi",
+        name="龙口粉丝",
+        aliases=["绿豆粉丝", "细粉丝", "粉丝"],
+        category=Category.NOODLE,
+        cooking_rule=CookingRule(
+            base_seconds=120,
+            crispy_seconds=90,
+            tender_seconds=120,
+            soft_seconds=200,
+            min_safe_seconds=60,
+            technique="泡软后下锅，煮至透明软滑",
+            warning="易糊，最后下"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=350),
+        dipping_sauce=["麻酱", "醋"],
+        priority=87
+    ),
+    "wudongmian": Ingredient(
+        id="wudongmian",
+        name="乌冬面",
+        aliases=["乌冬", "日本乌冬"],
+        category=Category.NOODLE,
+        cooking_rule=CookingRule(
+            base_seconds=180,
+            crispy_seconds=120,
+            tender_seconds=180,
+            soft_seconds=300,
+            min_safe_seconds=120,
+            technique="煮至软滑有嚼劲"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=132),
+        dipping_sauce=["直接吃", "酱油"],
+        priority=89
+    ),
+    "hefen": Ingredient(
+        id="hefen",
+        name="河粉",
+        aliases=["沙河粉", "粿条"],
+        category=Category.NOODLE,
+        cooking_rule=CookingRule(
+            base_seconds=60,
+            crispy_seconds=45,
+            tender_seconds=60,
+            soft_seconds=120,
+            min_safe_seconds=45,
+            technique="涮至软滑，不宜久煮易断"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=192),
+        dipping_sauce=["直接吃", "辣椒酱"],
+        priority=85
+    ),
+    "jiaozi": Ingredient(
+        id="jiaozi",
+        name="饺子",
+        aliases=["水饺", "火锅饺"],
+        category=Category.NOODLE,
+        cooking_rule=CookingRule(
+            base_seconds=300,
+            crispy_seconds=240,
+            tender_seconds=300,
+            soft_seconds=420,
+            min_safe_seconds=240,
+            technique="浮起后煮3-5分钟，馅熟透",
+            warning="冷冻饺需多煮"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=250),
+        dipping_sauce=["醋", "辣椒油", "蒜泥"],
+        priority=92
+    ),
+    "chaoshou": Ingredient(
+        id="chaoshou",
+        name="抄手",
+        aliases=["馄饨", "云吞", "扁食"],
+        category=Category.NOODLE,
+        cooking_rule=CookingRule(
+            base_seconds=240,
+            crispy_seconds=180,
+            tender_seconds=240,
+            soft_seconds=360,
+            min_safe_seconds=180,
+            technique="皮透明、馅熟透即可"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=220),
+        dipping_sauce=["红油", "醋", "蒜泥"],
+        priority=91
+    ),
+
+    # ========== 扩充：其他 ==========
+    "pidan": Ingredient(
+        id="pidan",
+        name="皮蛋",
+        aliases=["松花蛋", "变蛋"],
+        category=Category.OTHER,
+        cooking_rule=CookingRule(
+            base_seconds=60,
+            crispy_seconds=30,
+            tender_seconds=60,
+            soft_seconds=120,
+            min_safe_seconds=30,
+            technique="切瓣下锅加热即可，可生食",
+            warning="不宜久煮易散"
+        ),
+        nutrition=NutritionInfo(purine_level="低", calories_per_100g=171),
+        dipping_sauce=["姜醋", "酱油"],
+        priority=65
+    ),
+    "jizhao": Ingredient(
+        id="jizhao",
+        name="鸡爪",
+        aliases=["凤爪", "虎皮凤爪"],
+        category=Category.OTHER,
+        cooking_rule=CookingRule(
+            base_seconds=300,
+            crispy_seconds=240,
+            tender_seconds=300,
+            soft_seconds=600,
+            min_safe_seconds=240,
+            technique="煮至脱骨软糯",
+            warning="需充分煮熟"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=215),
+        dipping_sauce=["蒜泥", "辣椒酱"],
+        priority=28
+    ),
+    "yazhang": Ingredient(
+        id="yazhang",
+        name="鸭掌",
+        aliases=["鸭爪", "去骨鸭掌"],
+        category=Category.OTHER,
+        cooking_rule=CookingRule(
+            base_seconds=300,
+            crispy_seconds=240,
+            tender_seconds=300,
+            soft_seconds=600,
+            min_safe_seconds=240,
+            technique="煮至软糯脱骨"
+        ),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=150),
+        dipping_sauce=["香油蒜泥", "干碟"],
+        priority=30
+    ),
+    "yupi": Ingredient(
+        id="yupi",
+        name="鱼皮",
+        aliases=["炸鱼皮", "鱼皮脆"],
+        category=Category.OTHER,
+        cooking_rule=CookingRule(
+            base_seconds=15,
+            crispy_seconds=8,
+            tender_seconds=15,
+            soft_seconds=30,
+            min_safe_seconds=8,
+            technique="涮几秒即软，久煮易化",
+            warning="含鱼过敏注意"
+        ),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=350, allergens=["鱼"]),
+        dipping_sauce=["椒盐", "直接吃"],
+        priority=58
     ),
 }
 

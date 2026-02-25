@@ -43,11 +43,11 @@ def load_prompt(name: str, part: str) -> str:
 
 def get_domain_knowledge(sections: Optional[List[str]] = None) -> str:
     """
-    拼接领域知识。sections 可选 ["general_rules", "broth_mode_effect", "techniques"]，
+    拼接领域知识。sections 可选 ["general_rules", "broth_mode_effect", "techniques", "safety_and_misc"]，
     默认全部按此顺序。
     """
     if sections is None:
-        sections = ["general_rules", "broth_mode_effect", "techniques"]
+        sections = ["general_rules", "broth_mode_effect", "techniques", "safety_and_misc"]
     base = _versioned_dir(_KNOWLEDGE_DIR)
     parts = []
     for name in sections:
@@ -62,8 +62,15 @@ def get_domain_knowledge(sections: Optional[List[str]] = None) -> str:
     return "\n\n".join(parts) if parts else ""
 
 
-def get_few_shot_sort_examples(max_examples: int = 2) -> str:
-    """从 few_shot/sort_examples.json 读取示例并格式化为可注入的文本。"""
+def get_few_shot_sort_examples(
+    broth_type: Optional[str] = None,
+    user_mode: Optional[str] = None,
+    max_examples: int = 2,
+) -> str:
+    """
+    从 few_shot/sort_examples.json 读取示例并格式化为可注入的文本。
+    会优先选择与当前锅底 / 用户模式更匹配的示例。
+    """
     base = _versioned_dir(_FEW_SHOT_DIR)
     path = os.path.join(base, "sort_examples.json")
     if not os.path.isfile(path):
@@ -75,10 +82,28 @@ def get_few_shot_sort_examples(max_examples: int = 2) -> str:
         return ""
     if not isinstance(examples, list):
         return ""
-    lines = []
-    for i, ex in enumerate(examples[:max_examples], 1):
+
+    # 根据锅底 / 模式打分，优先选最匹配的 few-shot
+    def _score(ex: Dict[str, Any]) -> int:
+        score = 0
+        if broth_type and ex.get("broth_type") == broth_type:
+            score += 2
+        if user_mode and ex.get("user_mode") == user_mode:
+            score += 1
+        return score
+
+    indexed = []
+    for idx, ex in enumerate(examples):
         if not isinstance(ex, dict) or "下锅顺序" not in ex:
             continue
+        indexed.append((idx, _score(ex), ex))
+    if not indexed:
+        return ""
+    # 先按分数降序，再按原始顺序升序，保证稳定
+    indexed.sort(key=lambda t: (-t[1], t[0]))
+
+    lines = []
+    for i, (_, _, ex) in enumerate(indexed[:max_examples], 1):
         lines.append(f"示例{i}：锅底={ex.get('broth_type','')}，模式={ex.get('user_mode','')}")
         lines.append(f"  食材：{ex.get('ingredients','')}")
         lines.append(f"  输出：{json.dumps(ex['下锅顺序'], ensure_ascii=False)}")
@@ -133,7 +158,22 @@ def build_sort_prompt(
         )
 
     domain = get_domain_knowledge() if include_knowledge else ""
-    few_shot = get_few_shot_sort_examples(max_examples=max_few_shot) if include_few_shot else "（无）"
+    # 领域知识并入 system，user 中仅保留简短提示，避免重复占用上下文
+    if domain:
+        system = system + "\n\n【领域知识参考】\n" + domain
+        domain_for_user = "（领域知识已在系统提示中给出）"
+    else:
+        domain_for_user = ""
+
+    few_shot = (
+        get_few_shot_sort_examples(
+            broth_type=broth_type,
+            user_mode=user_mode,
+            max_examples=max_few_shot,
+        )
+        if include_few_shot
+        else "（无）"
+    )
     prefs_text = format_user_preferences(user_preferences)
 
     # 食材列表
@@ -146,7 +186,7 @@ def build_sort_prompt(
         ing_lines.append(f"  {i}. {name} | 分类:{cat} | 时间:{sec}秒 | {tech}")
     ingredient_list = "\n".join(ing_lines) if ing_lines else ""
 
-    user_str = user_template.replace("{{DOMAIN_KNOWLEDGE}}", domain)
+    user_str = user_template.replace("{{DOMAIN_KNOWLEDGE}}", domain_for_user)
     user_str = user_str.replace("{{USER_PREFERENCES}}", prefs_text)
     user_str = user_str.replace("{{FEW_SHOT_EXAMPLES}}", few_shot)
     user_str = user_str.replace("{{BROTH_TYPE}}", broth_type)

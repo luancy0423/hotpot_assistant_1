@@ -45,6 +45,16 @@ LLM_MAX_RETRIES = 3   # 排序接口最多重试次数（含首次）
 LLM_RETRY_DELAY = 4   # 重试间隔（秒）
 
 
+def _should_use_json_mode() -> bool:
+    """
+    是否为排序任务启用 JSON 模式（response_format=json_object）。
+    通过环境变量 HOTPOT_LLM_JSON_MODE 控制：设为 "1"/"true"/"yes" 时启用。
+    仅在所用模型 / 网关支持 OpenAI-style JSON Mode 时建议打开。
+    """
+    v = os.environ.get("HOTPOT_LLM_JSON_MODE", "").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
 def _call_chat_completion(
     api_key: str,
     system_content: str,
@@ -53,6 +63,7 @@ def _call_chat_completion(
     model: str = None,
     timeout: float = 120.0,
     max_tokens: int = 2048,
+    force_json: bool = False,
 ) -> Optional[str]:
     """
     调用 OpenAI 兼容的 chat/completions 接口，返回 assistant 的 content。
@@ -71,6 +82,9 @@ def _call_chat_completion(
         "temperature": 0.3,
         "max_tokens": max_tokens,
     }
+    # 若启用 JSON 模式，则请求底层模型只返回 JSON 对象
+    if force_json:
+        body["response_format"] = {"type": "json_object"}
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
         url,
@@ -206,6 +220,7 @@ def sort_cooking_order_by_llm(
                 base_url=base_url,
                 model=model,
                 timeout=timeout_sec,
+                force_json=_should_use_json_mode(),
             )
             if not content:
                 raise ValueError("大模型返回内容为空")

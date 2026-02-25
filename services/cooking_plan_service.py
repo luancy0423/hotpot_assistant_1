@@ -90,6 +90,7 @@ class CookingPlanGenerator:
         BrothType.TOMATO: 1.1,    # 番茄锅酸性，稍慢
         BrothType.MUSHROOM: 1.0,  # 菌汤标准
         BrothType.BONE: 1.0,      # 骨汤标准
+        BrothType.COMBO: 0.95,    # 鸳鸯锅（红汤+清汤），取平均略偏红汤
     }
     
     def __init__(self):

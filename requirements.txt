@@ -3,5 +3,7 @@
 
 # Web 界面（部署条件）
 gradio>=4.0.0
+# 计时页语音提醒：阿里云千问 TTS（需配置 DASHSCOPE_API_KEY）
+dashscope>=1.25.11
 
 # 项目核心为纯 Python，无其他必选依赖
