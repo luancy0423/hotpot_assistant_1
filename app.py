@@ -4,6 +4,7 @@
 平台约定入口文件名为 app.py，见官方部署教程。
 """
 
+from app_gradio import create_ui
 import sys
 import os
 
@@ -22,9 +23,8 @@ if os.path.isfile(_env_path):
                 if k and os.environ.get(k) is None:
                     os.environ[k] = v
 
-from app_gradio import create_ui
 
 if __name__ == "__main__":
     demo = create_ui()
     # 开放访问：0.0.0.0 允许本机以外访问；ModelScope 等平台会接管端口时仍可生效
-    demo.launch(server_name="0.0.0.0")
+    demo.launch(server_name="0.0.0.0", server_port=7860)

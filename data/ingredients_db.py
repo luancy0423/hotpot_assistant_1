@@ -9,7 +9,6 @@ from enum import Enum
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 
-
 class Category(Enum):
     """食材分类"""
     MEAT = "肉类"           # 牛羊肉等
@@ -22,14 +21,12 @@ class Category(Enum):
     MUSHROOM = "菌菇类"     # 各种菇类
     OTHER = "其他"          # 蛋类、海藻等
 
-
 class Texture(Enum):
     """口感偏好"""
     CRISPY = "脆"      # 脆嫩
     TENDER = "嫩"      # 软嫩
     SOFT = "软烂"      # 炖烂
     STANDARD = "标准"  # 正常
-
 
 class BrothType(Enum):
     """锅底类型"""
@@ -39,7 +36,6 @@ class BrothType(Enum):
     MUSHROOM = "菌汤"
     BONE = "骨汤"
     COMBO = "鸳鸯锅"
-
 
 @dataclass
 class CookingRule:
@@ -52,14 +48,12 @@ class CookingRule:
     technique: Optional[str] = None             # 涮煮技巧
     warning: Optional[str] = None               # 警告提示
 
-
-@dataclass
+@dataclass 
 class NutritionInfo:
     """营养信息"""
     purine_level: str = "低"                    # 嘌呤水平: 低/中/高
     calories_per_100g: int = 0                  # 每100g热量
     allergens: List[str] = field(default_factory=list)  # 过敏原
-
 
 @dataclass
 class Ingredient:
@@ -72,11 +66,9 @@ class Ingredient:
     nutrition: NutritionInfo                    # 营养信息
     dipping_sauce: List[str]                    # 推荐蘸料
     priority: int = 50                          # 下锅优先级(越小越先下)
-    broth_time_modifier: Dict[BrothType, float] = field(
-        default_factory=dict)  # 不同锅底时间系数
+    broth_time_modifier: Dict[BrothType, float] = field(default_factory=dict)  # 不同锅底时间系数
 
 # ============== 食材数据库 ==============
-
 
 INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
     # ========== 肉类 ==========
@@ -99,9 +91,9 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         priority=30,
         broth_time_modifier={BrothType.SPICY: 0.9, BrothType.CLEAR: 1.0}
     ),
-
+    
     "feiyangrou": Ingredient(
-        id="feiyangrou",
+        id="feiyangrou", 
         name="肥羊卷",
         aliases=["羊肉卷", "羊肉片", "精品羊肉"],
         category=Category.MEAT,
@@ -118,7 +110,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱", "韭花酱", "腐乳"],
         priority=32
     ),
-
+    
     "niuroupian": Ingredient(
         id="niuroupian",
         name="嫩牛肉",
@@ -136,7 +128,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["沙茶酱", "蒜泥香油"],
         priority=35
     ),
-
+    
     # ========== 内脏类 ==========
     "maodu": Ingredient(
         id="maodu",
@@ -156,7 +148,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["香油蒜泥", "油碟"],
         priority=20,  # 优先级高，适合先下
     ),
-
+    
     "yachang": Ingredient(
         id="yachang",
         name="鸭肠",
@@ -175,7 +167,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["香油蒜泥", "干碟"],
         priority=22
     ),
-
+    
     "huanghou": Ingredient(
         id="huanghou",
         name="黄喉",
@@ -194,7 +186,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["香油蒜泥"],
         priority=25
     ),
-
+    
     "naohua": Ingredient(
         id="naohua",
         name="脑花",
@@ -213,7 +205,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["香油蒜泥", "干碟"],
         priority=10  # 最先下锅
     ),
-
+    
     # ========== 海鲜类 ==========
     "xiahua": Ingredient(
         id="xiahua",
@@ -229,12 +221,11 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
             technique="勺子挖成球状下锅，浮起即熟",
             warning="生虾滑必须完全煮熟"
         ),
-        nutrition=NutritionInfo(
-            purine_level="高", calories_per_100g=87, allergens=["虾"]),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=87, allergens=["虾"]),
         dipping_sauce=["芥末酱油", "沙茶酱"],
         priority=40
     ),
-
+    
     "xianxia": Ingredient(
         id="xianxia",
         name="鲜虾",
@@ -249,12 +240,11 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
             technique="虾身变红弯曲即可",
             warning="必须完全变色才能食用"
         ),
-        nutrition=NutritionInfo(
-            purine_level="高", calories_per_100g=93, allergens=["虾"]),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=93, allergens=["虾"]),
         dipping_sauce=["芥末酱油", "蒜泥"],
         priority=45
     ),
-
+    
     # ========== 丸滑类 ==========
     "niurouwan": Ingredient(
         id="niurouwan",
@@ -274,7 +264,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["沙茶酱", "辣椒酱"],
         priority=15
     ),
-
+    
     "yuwan": Ingredient(
         id="yuwan",
         name="鱼丸",
@@ -288,12 +278,11 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
             min_safe_seconds=120,
             technique="浮起后煮1分钟"
         ),
-        nutrition=NutritionInfo(
-            purine_level="中", calories_per_100g=150, allergens=["鱼"]),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=150, allergens=["鱼"]),
         dipping_sauce=["甜辣酱"],
         priority=18
     ),
-
+    
     # ========== 蔬菜类 ==========
     "tudou": Ingredient(
         id="tudou",
@@ -313,7 +302,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱", "干碟"],
         priority=60
     ),
-
+    
     "oujie": Ingredient(
         id="oujie",
         name="藕片",
@@ -331,7 +320,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱", "干碟"],
         priority=55
     ),
-
+    
     "bocai": Ingredient(
         id="bocai",
         name="菠菜",
@@ -349,7 +338,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱", "蒜泥"],
         priority=80  # 最后下
     ),
-
+    
     "shengcai": Ingredient(
         id="shengcai",
         name="生菜",
@@ -367,7 +356,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱"],
         priority=85
     ),
-
+    
     "dongguapian": Ingredient(
         id="dongguapian",
         name="冬瓜",
@@ -385,7 +374,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱"],
         priority=50
     ),
-
+    
     # ========== 豆制品 ==========
     "laodoufu": Ingredient(
         id="laodoufu",
@@ -404,7 +393,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱", "干碟"],
         priority=25
     ),
-
+    
     "nendoufu": Ingredient(
         id="nendoufu",
         name="嫩豆腐",
@@ -422,7 +411,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["酱油"],
         priority=70
     ),
-
+    
     "fuzhu": Ingredient(
         id="fuzhu",
         name="腐竹",
@@ -440,7 +429,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱"],
         priority=45
     ),
-
+    
     # ========== 菌菇类 ==========
     "jinzhengu": Ingredient(
         id="jinzhengu",
@@ -460,7 +449,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱", "干碟"],
         priority=50
     ),
-
+    
     "xianggu": Ingredient(
         id="xianggu",
         name="香菇",
@@ -478,7 +467,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱"],
         priority=35
     ),
-
+    
     "pinggu": Ingredient(
         id="pinggu",
         name="平菇",
@@ -496,7 +485,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["麻酱"],
         priority=48
     ),
-
+    
     # ========== 主食类 ==========
     "fangbianmian": Ingredient(
         id="fangbianmian",
@@ -515,7 +504,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
         dipping_sauce=["直接吃"],
         priority=90
     ),
-
+    
     "niangao": Ingredient(
         id="niangao",
         name="年糕",
@@ -977,8 +966,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
             technique="薄片涮至变白卷曲",
             warning="必须熟透防寄生虫"
         ),
-        nutrition=NutritionInfo(
-            purine_level="中", calories_per_100g=88, allergens=["鱼"]),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=88, allergens=["鱼"]),
         dipping_sauce=["芥末酱油", "蒜泥"],
         priority=42
     ),
@@ -1030,8 +1018,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
             min_safe_seconds=45,
             technique="煮热即可，久煮易散"
         ),
-        nutrition=NutritionInfo(
-            purine_level="中", calories_per_100g=95, allergens=["鱼", "蟹"]),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=95, allergens=["鱼", "蟹"]),
         dipping_sauce=["芥末酱油", "甜辣酱"],
         priority=46
     ),
@@ -1104,8 +1091,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
             technique="浮起后再煮约1分钟",
             warning="含虾过敏者注意"
         ),
-        nutrition=NutritionInfo(
-            purine_level="高", calories_per_100g=119, allergens=["虾"]),
+        nutrition=NutritionInfo(purine_level="高", calories_per_100g=119, allergens=["虾"]),
         dipping_sauce=["芥末酱油", "沙茶酱"],
         priority=20
     ),
@@ -1122,8 +1108,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
             min_safe_seconds=60,
             technique="煮至膨胀浮起"
         ),
-        nutrition=NutritionInfo(
-            purine_level="中", calories_per_100g=108, allergens=["鱼"]),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=108, allergens=["鱼"]),
         dipping_sauce=["甜辣酱", "麻酱"],
         priority=22
     ),
@@ -1175,8 +1160,7 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
             min_safe_seconds=120,
             technique="煮至豆皮软、内馅热透"
         ),
-        nutrition=NutritionInfo(
-            purine_level="中", calories_per_100g=140, allergens=["鱼"]),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=140, allergens=["鱼"]),
         dipping_sauce=["甜辣酱", "麻酱"],
         priority=24
     ),
@@ -1667,63 +1651,30 @@ INGREDIENTS_DATABASE: Dict[str, Ingredient] = {
             technique="涮几秒即软，久煮易化",
             warning="含鱼过敏注意"
         ),
-        nutrition=NutritionInfo(
-            purine_level="中", calories_per_100g=350, allergens=["鱼"]),
+        nutrition=NutritionInfo(purine_level="中", calories_per_100g=350, allergens=["鱼"]),
         dipping_sauce=["椒盐", "直接吃"],
         priority=58
     ),
 }
 
-
 def get_all_ingredients() -> Dict[str, Ingredient]:
     """获取所有食材"""
     return INGREDIENTS_DATABASE
-
 
 def get_ingredient_by_id(ingredient_id: str) -> Optional[Ingredient]:
     """根据ID获取食材"""
     return INGREDIENTS_DATABASE.get(ingredient_id)
 
-
-def search_ingredient(keyword: str, use_smart_search: bool = True) -> List[Ingredient]:
-    """
-    模糊搜索食材（名称或别名）
-
-    Args:
-        keyword: 搜索关键词
-        use_smart_search: 是否使用智能搜索（拼音、错别字纠正、语义相似度）
-                         默认为 True，设为 False 使用原始简单匹配
-
-    Returns:
-        匹配的食材列表，按匹配度排序
-    """
-    if not keyword or not keyword.strip():
-        return []
-
-    keyword = keyword.strip()
-
-    # 使用智能搜索
-    if use_smart_search:
-        try:
-            # 延迟导入避免循环依赖
-            from data.ingredient_search import smart_search_ingredient
-            smart_results = smart_search_ingredient(keyword, top_k=5)
-            if smart_results:
-                return [r.ingredient for r in smart_results]
-        except Exception:
-            # 智能搜索失败时回退到原始搜索
-            pass
-
-    # 原始简单匹配（作为回退）
+def search_ingredient(keyword: str) -> List[Ingredient]:
+    """模糊搜索食材（名称或别名）"""
     results = []
-    keyword_lower = keyword.lower()
+    keyword = keyword.lower().strip()
     for ingredient in INGREDIENTS_DATABASE.values():
-        if keyword_lower in ingredient.name.lower():
+        if keyword in ingredient.name.lower():
             results.append(ingredient)
-        elif any(keyword_lower in alias.lower() for alias in ingredient.aliases):
+        elif any(keyword in alias.lower() for alias in ingredient.aliases):
             results.append(ingredient)
     return results
-
 
 def get_ingredients_by_category(category: Category) -> List[Ingredient]:
     """按分类获取食材"""
@@ -1737,8 +1688,7 @@ def export_cooking_times_to_json(filepath: str = None) -> str:
     """
     import json
     if filepath is None:
-        filepath = os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "火锅食材涮煮时间.json")
+        filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "火锅食材涮煮时间.json")
     out = {
         "description": "火锅食材涮煮时间数据库。时间单位：秒。base_seconds=标准涮煮时间，crispy_seconds=脆嫩，tender_seconds=软嫩，soft_seconds=软烂，min_safe_seconds=最低安全时间(必须熟透)。priority=建议下锅优先级，数值越小越先下。",
         "ingredients": []

@@ -357,7 +357,8 @@ def _ingredient_table_display_html(state):
     if not rows:
         return (
             "<div class='ingredient-table-wrap' id='ingredient-table-wrap'>"
-            "<p class='ingredient-table-empty'>暂无食材，请在上方添加。</p></div>"
+            "<p class='ingredient-table-empty'>暂无食材，请在上方添加。</p>"
+            "</div>"
         )
     buf = [
         "<div class='ingredient-table-wrap' id='ingredient-table-wrap'>",
@@ -724,8 +725,10 @@ def _nav_restart(step):
     return 0, gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
 
 
-def _nav_restart_from_timer(step):
-    """从计时页返回：步骤 3 -> 0"""
+def _nav_restart_from_timer(step, start_time):
+    """从计时页返回：步骤 3 -> 0，同时清理该 session 的缓存防内存泄漏。"""
+    if start_time and start_time > 0:
+        _cleanup_timer_state(start_time)
     return 0, gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
 
 
@@ -761,7 +764,7 @@ def _generate_and_go(ingredient_table, broth_label, texture_label, mode_label, a
 def _start_eating(plan_data):
     """点击「开始吃饭」：进入步骤 3，记录开始时间，并返回步骤 3 底部文案（安全/健康/蘸料）及初始提醒；同时后台一次性预生成本方案所有时间点的 TTS。"""
     if not plan_data or not plan_data.get("timeline"):
-        return 0, 2, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), "暂无方案数据，请先生成方案。", -1, -1, "⏱️ 已进行 **0 分 0 秒**\n\n暂无提醒。", ""
+        return 0, 2, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), "暂无方案数据，请先生成方案。", -1, -1, "<p style='color:#c0392b;padding:16px'>暂无方案数据，请先生成方案。</p>", ""
     start_time = time.time()
     import threading
     threading.Thread(target=_preload_all_tts_for_plan, args=(start_time, plan_data), daemon=True).start()
@@ -780,7 +783,7 @@ def _start_eating(plan_data):
         sauce_lines.append(f"- **{food}**：{' / '.join(sauces)}")
     sauce = "\n".join(sauce_lines) if sauce_lines else "无"
     bottom_md = head + f"### 🚨 安全提醒\n{safety}\n\n### 💚 健康贴士\n{health}\n\n### 🥢 蘸料推荐\n{sauce}"
-    initial_reminder = "⏱️ 已进行 **0 分 0 秒**\n\n请按方案顺序开始下锅，计时已启动。"
+    initial_reminder = "<p style='color:#aaa;text-align:center;padding:32px;font-size:.95em'>⏱ 计时已启动，请按方案顺序开始下锅。</p>"
     return start_time, 3, gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), bottom_md, -1, -1, initial_reminder, ""
 
 
@@ -797,6 +800,37 @@ _tts_preload_cache = {}
 _tts_preload_lock = __import__("threading").Lock()
 # 语音播放状态按 start_time 存，避免 Timer 只传 4 个输入时缺 State（Gradio 兼容）
 _voice_timer_state_by_start = {}
+# 最多同时保留的 session 数，防止长时间运行内存持续增长
+_TIMER_STATE_MAX_SESSIONS = 5
+
+
+def _cleanup_timer_state(start_time: float):
+    """结束计时时清理该 start_time 对应的全部缓存，并对两个全局字典做 LRU 兜底。"""
+    with _tts_preload_lock:
+        # 精确清除当前 session 的 TTS 预加载条目
+        for k in [k for k in _tts_preload_cache if k[0] == start_time]:
+            del _tts_preload_cache[k]
+        # LRU 兜底：超出上限时删除最旧 session 的全部条目
+        sessions = sorted({k[0] for k in _tts_preload_cache})
+        while len(sessions) > _TIMER_STATE_MAX_SESSIONS:
+            oldest = sessions.pop(0)
+            for k in [k for k in _tts_preload_cache if k[0] == oldest]:
+                del _tts_preload_cache[k]
+    # 清除语音状态
+    _voice_timer_state_by_start.pop(start_time, None)
+    # LRU 兜底
+    if len(_voice_timer_state_by_start) > _TIMER_STATE_MAX_SESSIONS:
+        for k in sorted(_voice_timer_state_by_start)[:-_TIMER_STATE_MAX_SESSIONS]:
+            _voice_timer_state_by_start.pop(k, None)
+
+
+def _ingredient_from_msg(msg: str) -> str:
+    """从事件 message 字段提取食材名称（格式：…【名称】…）。"""
+    if not msg:
+        return ""
+    import re
+    m = re.search(r"【([^】]+)】", msg)
+    return m.group(1) if m else msg
 
 
 def _flash_overlay_html():
@@ -831,12 +865,6 @@ def _do_tts_preload_one(start_time, time_seconds, plan_data):
     if not plan_data or not start_time or time_seconds is None:
         return
     events = (plan_data.get("timeline") or {}).get("events") or []
-    def _ingredient_from_msg(msg):
-        if not msg:
-            return ""
-        import re
-        m = re.search(r"【([^】]+)】", msg)
-        return m.group(1) if m else msg
     phrases = _phrases_for_events_at_time(events, time_seconds, _ingredient_from_msg)
     if not phrases:
         return
@@ -862,88 +890,208 @@ def _preload_all_tts_for_plan(start_time, plan_data):
         _do_tts_preload_one(start_time, t, plan_data)
 
 
-def _timer_tick(plan_data, start_time, last_put_sec, last_take_sec):
-    """每秒调用：根据已过时间生成「应下锅/应捞出」提醒，并在新事件时触发语音播报。语音在「开始吃饭」时已一次性预生成，到点直接播缓存；播报后保留 HTML 数秒避免被下一 tick 覆盖导致播到一半停。语音状态用模块级 _voice_timer_state_by_start 存储，兼容 Gradio Timer 只传 4 个输入。"""
-    if not plan_data or not start_time or start_time <= 0:
-        return "等待开始…", last_put_sec or -1, last_take_sec or -1, ""
-    state = _voice_timer_state_by_start.setdefault(start_time, {"last_voice_html": "", "voice_played_at_elapsed": -1})
-    last_voice_html = state.get("last_voice_html") or ""
-    voice_played_at_elapsed = state.get("voice_played_at_elapsed", -1)
-    if voice_played_at_elapsed is None:
-        voice_played_at_elapsed = -1
-    elapsed = int(time.time() - start_time)
-    events = (plan_data.get("timeline") or {}).get("events") or []
-    put_events = [e for e in events if e.get("action") == "下锅"]
-    take_events = [e for e in events if e.get("action") in ("捞出", "捞起")]
-    put_due = [e for e in put_events if e["time_seconds"] <= elapsed]
-    take_due = [e for e in take_events if e["time_seconds"] <= elapsed]
-    next_put = next((e for e in put_events if e["time_seconds"] > elapsed), None)
-    next_take = next((e for e in take_events if e["time_seconds"] > elapsed), None)
-    cur_put = put_due[-1] if put_due else None
-    cur_take = take_due[-1] if take_due else None
-    show_put = cur_put and (elapsed < cur_put["time_seconds"] + TIMER_PROMPT_DURATION_SEC)
-    show_take = cur_take and (elapsed < cur_take["time_seconds"] + TIMER_PROMPT_DURATION_SEC)
-    new_put_sec = (cur_put["time_seconds"] if cur_put else (last_put_sec if last_put_sec is not None else -1))
-    new_take_sec = (cur_take["time_seconds"] if cur_take else (last_take_sec if last_take_sec is not None else -1))
-    last_put_sec = last_put_sec if last_put_sec is not None else -1
-    last_take_sec = last_take_sec if last_take_sec is not None else -1
+def _build_timer_html(elapsed: int, total_seconds: int,
+                      show_put: bool, show_take: bool,
+                      name_put: str, name_take: str,
+                      next_put_info, next_take_info,
+                      items: list) -> str:
+    """
+    生成计时页的富文本 HTML 面板，包含：
+      · 大字时钟 + 整体进度条
+      · 当前操作卡片（橙色=下锅 / 绿色=捞出 / 虚线=等待）
+      · 即将操作预告
+      · 各食材状态列表（等待 / 进行中+小进度条 / 已完成✓）
+    """
+    import html as _html
 
-    def _ingredient_from_msg(msg):
-        if not msg:
-            return ""
-        import re
-        m = re.search(r"【([^】]+)】", msg)
-        return m.group(1) if m else msg
+    m_e, s_e = elapsed // 60, elapsed % 60
+    m_t, s_t = total_seconds // 60, total_seconds % 60
+    pct = min(100, int(elapsed / max(total_seconds, 1) * 100)) if total_seconds > 0 else 0
+    bar_color = "#e65c00" if pct < 85 else "#c0392b"
 
-    # 仅在新到点时播报语音（语音已在「开始吃饭」时一次性预生成，此处直接取缓存或回退现场 TTS）
-    play_voice = False
-    voice_put_new = cur_put and cur_put["time_seconds"] > last_put_sec
-    voice_take_new = cur_take and cur_take["time_seconds"] > last_take_sec
-    if voice_put_new or voice_take_new:
-        play_voice = True
+    # ── 时钟 ──────────────────────────────────────────────────
+    clock = f"""
+    <div style="text-align:center;padding:18px 0 6px">
+      <div style="font-size:3em;font-weight:700;letter-spacing:2px;color:#e65c00;line-height:1.1">
+        {m_e:02d}<span style="opacity:.55;font-size:.65em">分</span>{s_e:02d}<span style="opacity:.55;font-size:.65em">秒</span>
+      </div>
+      <div style="font-size:.82em;color:#999;margin-top:4px">总时长 {m_t}分{s_t:02d}秒</div>
+    </div>"""
 
-    m = int(elapsed // 60)
-    s = int(elapsed % 60)
-    time_str = f"⏱️ 已进行 **{m} 分 {s} 秒**"
-    reminder_lines = [time_str, ""]
+    # ── 进度条 ────────────────────────────────────────────────
+    progress = f"""
+    <div style="margin:4px 20px 4px">
+      <div style="background:#f0f0f0;border-radius:8px;height:10px;overflow:hidden">
+        <div style="width:{pct}%;height:100%;background:{bar_color};border-radius:8px;transition:width .9s ease"></div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:.78em;color:#bbb;margin-bottom:12px">{pct}% 完成</div>"""
+
+    # ── 当前操作卡片 ──────────────────────────────────────────
+    cards = ""
     if show_put:
-        name_put = _ingredient_from_msg(cur_put.get("message")) or cur_put.get("item_name") or cur_put.get("message", "")
-        reminder_lines.append(f"## ⬇️ 现在请下锅：**{name_put}**")
+        cards += f"""
+        <div style="margin:6px 16px;padding:14px 18px;border-radius:12px;
+                    background:linear-gradient(135deg,#fff3e0,#ffe0b2);
+                    border-left:5px solid #e65c00;box-shadow:0 2px 8px rgba(230,92,0,.14)">
+          <div style="font-size:.72em;font-weight:700;color:#e65c00;letter-spacing:1px;margin-bottom:3px">⬇ 现在下锅</div>
+          <div style="font-size:1.65em;font-weight:700;color:#333">{_html.escape(name_put)}</div>
+        </div>"""
     if show_take:
-        name_take = _ingredient_from_msg(cur_take.get("message")) or cur_take.get("item_name") or cur_take.get("message", "")
-        reminder_lines.append(f"## ⬆️ 现在请捞出：**{name_take}**")
+        cards += f"""
+        <div style="margin:6px 16px;padding:14px 18px;border-radius:12px;
+                    background:linear-gradient(135deg,#e8f5e9,#c8e6c9);
+                    border-left:5px solid #2e7d32;box-shadow:0 2px 8px rgba(46,125,50,.14)">
+          <div style="font-size:.72em;font-weight:700;color:#2e7d32;letter-spacing:1px;margin-bottom:3px">⬆ 现在捞出</div>
+          <div style="font-size:1.65em;font-weight:700;color:#333">{_html.escape(name_take)}</div>
+        </div>"""
     if not show_put and not show_take:
-        reminder_lines.append("暂无提醒，请按方案顺序操作。")
-    if next_put:
-        sec = next_put["time_seconds"] - elapsed
-        name = _ingredient_from_msg(next_put.get("message")) or next_put.get("item_name") or next_put.get("message", "")
-        reminder_lines.append(f"\n*即将下锅：{name}（约 {sec} 秒后）*")
-    if next_take:
-        sec = next_take["time_seconds"] - elapsed
-        name = _ingredient_from_msg(next_take.get("message")) or next_take.get("item_name") or next_take.get("message", "")
-        reminder_lines.append(f"*即将捞出：{name}（约 {sec} 秒后）*")
+        cards = """
+        <div style="margin:6px 16px;padding:14px 18px;border-radius:12px;
+                    background:#fafafa;border:1.5px dashed #e0e0e0;
+                    text-align:center;color:#bbb;font-size:.95em">
+          暂无操作，稍作等待…
+        </div>"""
 
-    # 语音：到点优先用预加载缓存，避免卡顿；播报后保留 HTML TIMER_VOICE_KEEP_HTML_SEC 秒，避免下一 tick 覆盖导致播到一半停
+    # ── 即将到来预告 ──────────────────────────────────────────
+    upcoming = ""
+    rows = []
+    if next_put_info:
+        sec, name = next_put_info
+        rows.append(f'<span style="color:#e65c00">⬇ {_html.escape(name)}</span>（{sec} 秒后下锅）')
+    if next_take_info:
+        sec, name = next_take_info
+        rows.append(f'<span style="color:#2e7d32">⬆ {_html.escape(name)}</span>（{sec} 秒后捞出）')
+    if rows:
+        upcoming = f"""
+        <div style="margin:4px 16px 10px;padding:9px 14px;border-radius:8px;
+                    background:#f8f9fa;font-size:.84em;color:#555;line-height:1.9">
+          <span style="font-weight:600;color:#aaa;font-size:.8em;display:block;margin-bottom:2px">即将操作</span>
+          {"<br>".join(rows)}
+        </div>"""
+
+    # ── 食材状态列表 ──────────────────────────────────────────
+    status_rows_html = ""
+    if items:
+        cumulative = 0
+        for item in items:
+            iname  = item.get("ingredient_name", "")
+            cook   = item.get("cooking_seconds", 0)
+            put_t  = item.get("start_offset_seconds", cumulative)
+            take_t = put_t + cook
+            cumulative = max(cumulative, put_t) + cook
+
+            if elapsed < put_t:
+                dot   = "#ccc"
+                badge = f"<span style='color:#bbb'>等待（{put_t - elapsed}秒后下锅）</span>"
+                bg    = "#fafafa"
+            elif elapsed < take_t:
+                done_pct = min(100, int((elapsed - put_t) / max(cook, 1) * 100))
+                dot   = "#e65c00"
+                badge = (f"<span style='color:#e65c00'>进行中，还需 {take_t - elapsed} 秒</span>"
+                         f"<div style='margin-top:4px;height:4px;background:#f0e0d0;border-radius:4px;overflow:hidden'>"
+                         f"<div style='width:{done_pct}%;height:100%;background:#e65c00;border-radius:4px'></div></div>")
+                bg    = "#fff8f0"
+            else:
+                dot   = "#2e7d32"
+                badge = "<span style='color:#2e7d32;font-weight:600'>✓ 已捞出</span>"
+                bg    = "#f0fff4"
+
+            status_rows_html += f"""
+            <tr style="background:{bg}">
+              <td style="padding:7px 10px;font-size:.88em;font-weight:600;white-space:nowrap">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
+                             background:{dot};margin-right:7px;vertical-align:middle"></span>
+                {_html.escape(iname)}
+              </td>
+              <td style="padding:7px 10px;font-size:.82em;width:100%">{badge}</td>
+            </tr>"""
+
+    status_block = ""
+    if status_rows_html:
+        status_block = f"""
+        <div style="margin:8px 16px 18px;border-radius:10px;overflow:hidden;
+                    border:1px solid #eee;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+          <div style="padding:7px 12px;background:#f5f5f5;
+                      font-size:.73em;font-weight:700;color:#999;letter-spacing:.5px">食材状态</div>
+          <table style="width:100%;border-collapse:collapse">{status_rows_html}</table>
+        </div>"""
+
+    return f"""
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+                max-width:560px;margin:0 auto;border-radius:16px;overflow:hidden;
+                border:1px solid #ffe0b2;background:#fff;
+                box-shadow:0 4px 18px rgba(230,92,0,.10)">
+      {clock}{progress}{cards}{upcoming}{status_block}
+    </div>"""
+
+
+def _timer_tick(plan_data, start_time, last_put_sec, last_take_sec):
+    """每秒调用：计算当前进度，返回可视化 HTML + 语音播报 HTML。"""
+    if not plan_data or not start_time or start_time <= 0:
+        return ("<p style='color:#bbb;text-align:center;padding:40px;font-size:.95em'>"
+                "等待开始…</p>"), last_put_sec or -1, last_take_sec or -1, ""
+
+    state = _voice_timer_state_by_start.setdefault(
+        start_time, {"last_voice_html": "", "voice_played_at_elapsed": -1}
+    )
+    last_voice_html      = state.get("last_voice_html") or ""
+    voice_played_at_elapsed = state.get("voice_played_at_elapsed", -1) or -1
+
+    elapsed      = int(time.time() - start_time)
+    timeline     = plan_data.get("timeline") or {}
+    total_sec    = timeline.get("total_duration_seconds") or 0
+    events       = timeline.get("events") or []
+    items        = timeline.get("items") or []
+
+    put_events  = [e for e in events if e.get("action") == "下锅"]
+    take_events = [e for e in events if e.get("action") in ("捞出", "捞起")]
+    put_due     = [e for e in put_events  if e["time_seconds"] <= elapsed]
+    take_due    = [e for e in take_events if e["time_seconds"] <= elapsed]
+    cur_put     = put_due[-1]  if put_due  else None
+    cur_take    = take_due[-1] if take_due else None
+    next_put    = next((e for e in put_events  if e["time_seconds"] > elapsed), None)
+    next_take   = next((e for e in take_events if e["time_seconds"] > elapsed), None)
+
+    show_put  = bool(cur_put  and elapsed < cur_put["time_seconds"]  + TIMER_PROMPT_DURATION_SEC)
+    show_take = bool(cur_take and elapsed < cur_take["time_seconds"] + TIMER_PROMPT_DURATION_SEC)
+
+    new_put_sec  = cur_put["time_seconds"]  if cur_put  else (last_put_sec  or -1)
+    new_take_sec = cur_take["time_seconds"] if cur_take else (last_take_sec or -1)
+    last_put_sec  = last_put_sec  or -1
+    last_take_sec = last_take_sec or -1
+
+    name_put  = (_ingredient_from_msg(cur_put.get("message"))  or cur_put.get("item_name",""))  if cur_put  else ""
+    name_take = (_ingredient_from_msg(cur_take.get("message")) or cur_take.get("item_name","")) if cur_take else ""
+
+    next_put_info  = ((next_put["time_seconds"]  - elapsed,
+                       _ingredient_from_msg(next_put.get("message"))  or next_put.get("item_name",""))
+                      if next_put  else None)
+    next_take_info = ((next_take["time_seconds"] - elapsed,
+                       _ingredient_from_msg(next_take.get("message")) or next_take.get("item_name",""))
+                      if next_take else None)
+
+    display_html = _build_timer_html(
+        elapsed, total_sec, show_put, show_take,
+        name_put, name_take, next_put_info, next_take_info, items,
+    )
+
+    # ── 语音播报（逻辑与原版完全一致）────────────────────────
+    voice_put_new  = bool(cur_put  and cur_put["time_seconds"]  > last_put_sec)
+    voice_take_new = bool(cur_take and cur_take["time_seconds"] > last_take_sec)
+    play_voice     = voice_put_new or voice_take_new
+
     voice_html_out = ""
     if play_voice:
         phrases = []
-        if voice_put_new and cur_put:
-            name = _ingredient_from_msg(cur_put.get("message")) or cur_put.get("item_name") or cur_put.get("message", "")
-            phrases.append(f"现在请下锅，{name}")
-        if voice_take_new and cur_take:
-            name = _ingredient_from_msg(cur_take.get("message")) or cur_take.get("item_name") or cur_take.get("message", "")
-            phrases.append(f"现在请捞出，{name}")
+        if voice_put_new  and cur_put:  phrases.append(f"现在请下锅，{name_put}")
+        if voice_take_new and cur_take: phrases.append(f"现在请捞出，{name_take}")
         if phrases:
-            # 用当前播报事件所在秒作为缓存 key（仅捞出时若用 cur_put 会错用上一秒的下锅时间，导致取不到捞出预加载）
-            event_sec = None
-            if voice_put_new and cur_put:
-                event_sec = cur_put["time_seconds"]
-            elif voice_take_new and cur_take:
-                event_sec = cur_take["time_seconds"]
+            event_sec = (cur_put["time_seconds"]  if voice_put_new  and cur_put  else
+                         cur_take["time_seconds"] if voice_take_new and cur_take else None)
             if event_sec is not None:
-                cache_key = (start_time, event_sec)
                 with _tts_preload_lock:
-                    voice_html_out = (_tts_preload_cache.pop(cache_key, None) or "").strip()
+                    voice_html_out = (_tts_preload_cache.pop((start_time, event_sec), None) or "").strip()
             if not voice_html_out or voice_html_out == "None":
                 voice_html_out = _tts_phrase_to_audio_html("。".join(phrases))
             if not voice_html_out and _BEEP_B64:
@@ -954,56 +1102,19 @@ def _timer_tick(plan_data, start_time, last_put_sec, last_take_sec):
         voice_html_out = (voice_html_out or "") + _flash_overlay_html()
         _voice_timer_state_by_start[start_time] = {"last_voice_html": voice_html_out, "voice_played_at_elapsed": elapsed}
     else:
-        # 未到新到点：若距离上次播报不足 TIMER_VOICE_KEEP_HTML_SEC 秒，继续显示上次 HTML，避免覆盖导致播到一半停
-        if last_voice_html and voice_played_at_elapsed >= 0 and (elapsed - voice_played_at_elapsed) < TIMER_VOICE_KEEP_HTML_SEC:
+        if (last_voice_html and voice_played_at_elapsed >= 0
+                and (elapsed - voice_played_at_elapsed) < TIMER_VOICE_KEEP_HTML_SEC):
             voice_html_out = last_voice_html
-        else:
-            voice_html_out = ""
-        _voice_timer_state_by_start[start_time] = {"last_voice_html": last_voice_html or "", "voice_played_at_elapsed": voice_played_at_elapsed}
+        _voice_timer_state_by_start[start_time] = {
+            "last_voice_html": last_voice_html or "", "voice_played_at_elapsed": voice_played_at_elapsed
+        }
 
-    return "\n".join(reminder_lines), new_put_sec, new_take_sec, voice_html_out
+    return display_html, new_put_sec, new_take_sec, voice_html_out
 
 
 def create_ui():
     """构建 Gradio 界面：步骤1 食材 → 步骤2 锅底/偏好 → 步骤3 方案结果 → 步骤4 吃饭计时。"""
-    _head_script = r"""
-<script>
-(function(){
-  function clearScrollOnAncestors(startEl) {
-    if (!startEl) return;
-    var el = startEl;
-    while (el && el !== document.body) {
-      var cs = window.getComputedStyle(el);
-      var needFix = cs.overflowY === 'auto' || cs.overflowY === 'scroll' || cs.overflow === 'auto' || cs.overflow === 'scroll' || (cs.maxHeight && cs.maxHeight !== 'none');
-      if (needFix) {
-        el.style.setProperty('overflow-y', 'visible', 'important');
-        el.style.setProperty('overflow', 'visible', 'important');
-        el.style.setProperty('max-height', 'none', 'important');
-      }
-      el = el.parentElement;
-    }
-  }
-  function fixScrolls() {
-    clearScrollOnAncestors(document.getElementById('ingredient-table-wrap'));
-    clearScrollOnAncestors(document.getElementById('ingredient-form-row'));
-  }
-  function runFix() {
-    fixScrolls();
-    setTimeout(fixScrolls, 100);
-    setTimeout(fixScrolls, 500);
-    setTimeout(fixScrolls, 1200);
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', runFix);
-  } else {
-    runFix();
-  }
-  var observer = new MutationObserver(function() { fixScrolls(); });
-  observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
-"""
-    with gr.Blocks(title="涮涮AI - 智能火锅助手", head=_head_script) as demo:
+    with gr.Blocks(title="涮涮AI - 智能火锅助手") as demo:
         gr.Markdown("# 🍲 涮涮AI — 智能火锅助手")
         step_state = gr.State(0)
         plan_data_state = gr.State(None)
@@ -1132,7 +1243,10 @@ def create_ui():
         step3 = gr.Column(visible=False)
         with step3:
             gr.Markdown("### 🍲 吃饭计时 — 按提示下锅/捞出")
-            timer_reminder_md = gr.Markdown(value="⏱️ 已进行 **0 分 0 秒**\n\n暂无提醒。", elem_classes=["timer-reminder"])
+            timer_reminder_md = gr.HTML(
+                value="<p style='color:#bbb;text-align:center;padding:40px;font-size:.95em'>点击「开始吃饭」后计时将在此显示。</p>",
+                elem_id="hotpot-timer-display",
+            )
             timer_beep_html = gr.HTML(value="")
             timer_bottom_md = gr.Markdown(value="")
             btn_back_from_timer = gr.Button("结束计时，返回首页")
@@ -1210,7 +1324,7 @@ def create_ui():
         )
         btn_back_from_timer.click(
             fn=_nav_restart_from_timer,
-            inputs=[step_state],
+            inputs=[step_state, start_time_state],
             outputs=[step_state, step0, step1, step2, step3],
         )
         load_pref_btn.click(
@@ -1274,17 +1388,9 @@ if __name__ == "__main__":
         css="""
         .main-header { font-size: 1.4em; margin-bottom: 0.5em; }
         .gr-markdown { font-size: 0.95em; }
-        .timer-reminder { font-size: 1.2em; }
+        #hotpot-timer-display { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         #ingredient-form-row > div, #ingredient-actions-row > div { align-self: stretch; display: flex; flex-direction: column; }
         #ingredient-form-row .wrap, #ingredient-actions-row .wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-        /* 食材名称/涮煮时间/份数 所在行及包裹它的块：禁止滚动 */
-        #ingredient-form-row,
-        #ingredient-form-row *,
-        #step0-ingredients div:has(#ingredient-form-row) {
-            overflow: visible !important;
-            overflow-y: visible !important;
-            max-height: none !important;
-        }
         /* 食材表格区域：禁止上下滚动、隐藏滚动条 */
         #ingredient-table-html,
         .ingredient-table-no-scroll,
@@ -1306,10 +1412,9 @@ if __name__ == "__main__":
         }
         .ingredient-table-wrap .ingredient-display-table { width: 100%; border-collapse: collapse; }
         .ingredient-table-wrap .ingredient-display-table th,
-        .ingredient-table-wrap .ingredient-display-table td { border: 1px solid var(--border-color-primary, #e5e7eb); padding: 0.4em 0.6em; text-align: left; }
-        .ingredient-table-wrap .ingredient-display-table th { background: var(--block-background-fill, #e5e7eb) !important; color: var(--body-text-color, #111827) !important; font-weight: 600; }
-        .ingredient-table-wrap .ingredient-display-table td { background: var(--background-fill-secondary, var(--block-background-fill, #f9fafb)) !important; color: var(--body-text-color, #111827) !important; }
-        .ingredient-table-empty { color: var(--body-text-color-secondary, #6b7280); margin: 0.5em 0; font-size: 0.95em; }
+        .ingredient-table-wrap .ingredient-display-table td { border: 1px solid var(--border-color-primary, #e0e0e0); padding: 0.4em 0.6em; text-align: left; }
+        .ingredient-table-wrap .ingredient-display-table th { background: var(--block-background-fill-secondary, #f5f5f5); font-weight: 600; }
+        .ingredient-table-empty { color: var(--body-text-color-subdued, #666); margin: 0.5em 0; font-size: 0.95em; }
         /* 隐藏该区域内可能出现的滚动条 */
         #step0-ingredients ::-webkit-scrollbar { display: none !important; }
         #ingredient-table-html ::-webkit-scrollbar { display: none !important; }
