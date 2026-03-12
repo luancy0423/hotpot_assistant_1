@@ -459,43 +459,37 @@ def _table_ensure_rows(table, min_rows=1):
 def voice_to_ingredients(audio_path, current_state):
     """
     语音识别并填入食材：将识别到的食材追加到当前列表（每行：名称、空、1）。
-    返回 (新 state, 展示表行, 状态提示, 删除行下拉选项)
+    返回 (新 state, 展示表HTML, 状态提示, 删除行下拉选项)
     """
     if not audio_path or not os.path.isfile(audio_path):
-        display = _ingredient_table_display_rows(current_state)
-        return current_state, display, "请先录制或上传一段语音（说菜名即可）。", _ingredient_delete_choices(current_state or [])
+        return current_state, _ingredient_table_display_html(current_state or []), "请先录制或上传一段语音（说菜名即可）。", _ingredient_delete_choices(current_state or [])
     try:
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
     except Exception as e:
-        display = _ingredient_table_display_rows(current_state)
-        return current_state, display, f"读取音频失败：{e}", _ingredient_delete_choices(current_state or [])
+        return current_state, _ingredient_table_display_html(current_state or []), f"读取音频失败：{e}", _ingredient_delete_choices(current_state or [])
     result = api.input_from_voice(audio_data=audio_bytes)
     if not result.success:
-        display = _ingredient_table_display_rows(current_state)
-        return current_state, display, f"语音识别失败：{result.error}", _ingredient_delete_choices(current_state or [])
+        return current_state, _ingredient_table_display_html(current_state or []), f"语音识别失败：{result.error}", _ingredient_delete_choices(current_state or [])
     names = result.data.get("ingredient_names") or []
     transcript = result.data.get("transcript") or ""
     if not names:
-        display = _ingredient_table_display_rows(current_state)
-        return current_state, display, f"未识别到食材。转写：「{(transcript[:50] + '…') if len(transcript) > 50 else transcript}」", _ingredient_delete_choices(current_state or [])
+        return current_state, _ingredient_table_display_html(current_state or []), f"未识别到食材。转写：「{(transcript[:50] + '…') if len(transcript) > 50 else transcript}」", _ingredient_delete_choices(current_state or [])
     rows = _table_ensure_rows(current_state)
     for name in names:
         if name and name.strip():
             rows.append([name.strip(), "", 1])
-    display = _ingredient_table_display_rows(rows)
     short_transcript = (transcript[:30] + "…") if len(transcript) > 30 else transcript
-    return rows, display, f"已识别：{'、'.join(names)}（转写：{short_transcript}）", _ingredient_delete_choices(rows)
+    return rows, _ingredient_table_display_html(rows), f"已识别：{'、'.join(names)}（转写：{short_transcript}）", _ingredient_delete_choices(rows)
 
 
 def image_to_ingredients(image, current_state):
     """
     上传图片用 VLM 识别食材并填入：将识别到的食材追加到当前列表（每行：名称、空、1）。
-    返回 (新 state, 展示表行, 状态提示, 删除行下拉选项)
+    返回 (新 state, 展示表HTML, 状态提示, 删除行下拉选项)
     """
     if image is None:
-        display = _ingredient_table_display_rows(current_state)
-        return current_state, display, "请先上传一张图片（菜单、菜品或餐桌均可）。", _ingredient_delete_choices(current_state or [])
+        return current_state, _ingredient_table_display_html(current_state or []), "请先上传一张图片（菜单、菜品或餐桌均可）。", _ingredient_delete_choices(current_state or [])
     if isinstance(image, str):
         path = image
     elif isinstance(image, dict):
@@ -503,30 +497,25 @@ def image_to_ingredients(image, current_state):
     else:
         path = getattr(image, "name", None) or getattr(image, "path", None)
     if not path or not os.path.isfile(path):
-        display = _ingredient_table_display_rows(current_state)
-        return current_state, display, "无法读取图片文件，请重新上传。", _ingredient_delete_choices(current_state or [])
+        return current_state, _ingredient_table_display_html(current_state or []), "无法读取图片文件，请重新上传。", _ingredient_delete_choices(current_state or [])
     try:
         with open(path, "rb") as f:
             image_data = f.read()
     except Exception as e:
-        display = _ingredient_table_display_rows(current_state)
-        return current_state, display, f"读取图片失败：{e}", _ingredient_delete_choices(current_state or [])
+        return current_state, _ingredient_table_display_html(current_state or []), f"读取图片失败：{e}", _ingredient_delete_choices(current_state or [])
     ext = os.path.splitext(path)[1].lower()
     mime = "image/png" if ext == ".png" else "image/jpeg"
     try:
         names = vlm_recognize_ingredients(image_data, mime_type=mime)
     except Exception as e:
-        display = _ingredient_table_display_rows(current_state)
-        return current_state, display, f"VLM 识别失败：{e}", _ingredient_delete_choices(current_state or [])
+        return current_state, _ingredient_table_display_html(current_state or []), f"VLM 识别失败：{e}", _ingredient_delete_choices(current_state or [])
     if not names:
-        display = _ingredient_table_display_rows(current_state)
-        return current_state, display, "图中未识别到火锅食材，请换一张图片试试。", _ingredient_delete_choices(current_state or [])
+        return current_state, _ingredient_table_display_html(current_state or []), "图中未识别到火锅食材，请换一张图片试试。", _ingredient_delete_choices(current_state or [])
     rows = _table_ensure_rows(current_state)
     for name in names:
         if name and name.strip():
             rows.append([name.strip(), "", 1])
-    display = _ingredient_table_display_rows(rows)
-    return rows, display, f"已识别：{'、'.join(names)}", _ingredient_delete_choices(rows)
+    return rows, _ingredient_table_display_html(rows), f"已识别：{'、'.join(names)}", _ingredient_delete_choices(rows)
 
 
 def build_ingredient_placeholder():
@@ -1721,22 +1710,51 @@ def create_ui():
         )
 
         # ── 步骤1：食材输入 ───────────────────────────────────────────────
+        def _on_name_change(name_val):
+            """输入食材名称时：更新搜索下拉 + 更新提示"""
+            try:
+                # 搜索建议
+                choices = _search_ingredients_for_dropdown(name_val)
+                # 提示信息
+                hint = _ingredient_lookup_hint(name_val, None)
+                return gr.update(choices=choices, value=None), hint
+            except Exception as e:
+                print(f"Error in _on_name_change: {e}")
+                return gr.update(choices=[], value=None), ""
+        
         ingredient_name_input.change(
-            fn=_search_ingredients_for_dropdown,
-            inputs=[ingredient_name_input], outputs=[ingredient_search_dd],
+            fn=_on_name_change,
+            inputs=[ingredient_name_input],
+            outputs=[ingredient_search_dd, ingredient_default_hint],
         )
-        def _hint(n, t):
-            return _ingredient_lookup_hint(n, t)
-        ingredient_name_input.change(
-            fn=_hint, inputs=[ingredient_name_input, ingredient_time_input],
-            outputs=[ingredient_default_hint],
-        )
+        
+        def _on_time_change(name_val, time_val):
+            """涮煮时间变化时更新提示"""
+            try:
+                hint = _ingredient_lookup_hint(name_val, time_val)
+                return hint
+            except Exception as e:
+                print(f"Error in _on_time_change: {e}")
+                return ""
+        
         ingredient_time_input.change(
-            fn=_hint, inputs=[ingredient_name_input, ingredient_time_input],
+            fn=_on_time_change,
+            inputs=[ingredient_name_input, ingredient_time_input],
             outputs=[ingredient_default_hint],
         )
+        
+        def _on_search_select(v):
+            """当用户从下拉框选择时，将选中的值填入名称框"""
+            try:
+                if v and str(v).strip():
+                    return str(v).strip()
+                return ""
+            except Exception as e:
+                print(f"Error in _on_search_select: {e}")
+                return ""
+        
         ingredient_search_dd.change(
-            fn=lambda v: v or "",
+            fn=_on_search_select,
             inputs=[ingredient_search_dd], outputs=[ingredient_name_input],
         )
 
