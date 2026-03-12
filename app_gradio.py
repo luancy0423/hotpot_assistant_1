@@ -1741,11 +1741,20 @@ def create_ui():
         )
 
         def _add_v4(name, t, p, state):
-            state, _, _, nt, np_, _, choices = _add_ingredient_row(name, t, p, state)
-            return (state, _ingredient_table_display_html(state),
-                    "", nt, np_, "",
-                    gr.update(choices=choices, value=None),
-                    _basket_bar_html(len(state), state))
+            try:
+                state, _, _, nt, np_, _, choices = _add_ingredient_row(name, t, p, state)
+                return (state, _ingredient_table_display_html(state),
+                        "", nt, np_, "",
+                        gr.update(choices=choices, value=None),
+                        _basket_bar_html(len(state), state))
+            except Exception as e:
+                import traceback
+                print(f"Error in _add_v4: {e}")
+                traceback.print_exc()
+                return (state or [], _ingredient_table_display_html(state or []),
+                        f"❌ 错误：{str(e)}", 0, 1, "",
+                        gr.update(choices=[], value=None),
+                        _basket_bar_html(0, []))
         btn_add_row.click(
             fn=_add_v4,
             inputs=[ingredient_name_input, ingredient_time_input,
@@ -1763,10 +1772,18 @@ def create_ui():
         )
 
         def _del_v4(state, sel):
-            new_state, _, choices = _delete_selected_ingredient_row(state, sel)
-            return (new_state, _ingredient_table_display_html(new_state),
-                    gr.update(choices=choices, value=None),
-                    _basket_bar_html(len(new_state), new_state))
+            try:
+                new_state, _, choices = _delete_selected_ingredient_row(state, sel)
+                return (new_state, _ingredient_table_display_html(new_state),
+                        gr.update(choices=choices, value=None),
+                        _basket_bar_html(len(new_state), new_state))
+            except Exception as e:
+                import traceback
+                print(f"Error in _del_v4: {e}")
+                traceback.print_exc()
+                return (state or [], _ingredient_table_display_html(state or []),
+                        gr.update(choices=[], value=None),
+                        _basket_bar_html(0, []))
         btn_del_selected.click(
             fn=_del_v4,
             inputs=[ingredient_table_state, ingredient_delete_dd],
@@ -1775,10 +1792,19 @@ def create_ui():
         )
 
         def _batch_v4(text, state):
-            new_state, html, msg, _ = _batch_add_ingredients(text, state)
-            return (new_state, html, msg,
-                    gr.update(choices=_ingredient_delete_choices(new_state), value=None),
-                    _basket_bar_html(len(new_state), new_state))
+            try:
+                new_state, html, msg, _ = _batch_add_ingredients(text, state)
+                return (new_state, html, msg,
+                        gr.update(choices=_ingredient_delete_choices(new_state), value=None),
+                        _basket_bar_html(len(new_state), new_state))
+            except Exception as e:
+                import traceback
+                print(f"Error in _batch_v4: {e}")
+                traceback.print_exc()
+                return (state or [], _ingredient_table_display_html(state or []),
+                        f"❌ 批量添加失败：{str(e)}", 
+                        gr.update(choices=[], value=None),
+                        _basket_bar_html(0, []))
         btn_batch_add.click(
             fn=_batch_v4,
             inputs=[batch_paste_input, ingredient_table_state],
@@ -1788,10 +1814,19 @@ def create_ui():
         btn_batch_clear.click(fn=lambda: "", inputs=[], outputs=[batch_paste_input])
 
         def _img_v4(img, state):
-            state, _, status, choices = image_to_ingredients(img, state)
-            return (state, _ingredient_table_display_html(state), status,
-                    gr.update(choices=choices, value=None),
-                    _basket_bar_html(len(state), state))
+            try:
+                state, _, status, choices = image_to_ingredients(img, state)
+                return (state, _ingredient_table_display_html(state), status,
+                        gr.update(choices=choices, value=None),
+                        _basket_bar_html(len(state), state))
+            except Exception as e:
+                import traceback
+                print(f"Error in _img_v4: {e}")
+                traceback.print_exc()
+                return (state or [], _ingredient_table_display_html(state or []),
+                        f"❌ 图片识别失败：{str(e)}", 
+                        gr.update(choices=[], value=None),
+                        _basket_bar_html(0, []))
         btn_image.click(
             fn=_img_v4,
             inputs=[image_input, ingredient_table_state],
@@ -1800,10 +1835,19 @@ def create_ui():
         )
 
         def _voice_v4(audio, state):
-            state, _, status, choices = voice_to_ingredients(audio, state)
-            return (state, _ingredient_table_display_html(state), status,
-                    gr.update(choices=choices, value=None),
-                    _basket_bar_html(len(state), state))
+            try:
+                state, _, status, choices = voice_to_ingredients(audio, state)
+                return (state, _ingredient_table_display_html(state), status,
+                        gr.update(choices=choices, value=None),
+                        _basket_bar_html(len(state), state))
+            except Exception as e:
+                import traceback
+                print(f"Error in _voice_v4: {e}")
+                traceback.print_exc()
+                return (state or [], _ingredient_table_display_html(state or []),
+                        f"❌ 语音识别失败：{str(e)}", 
+                        gr.update(choices=[], value=None),
+                        _basket_bar_html(0, []))
         btn_voice.click(
             fn=_voice_v4,
             inputs=[voice_input, ingredient_table_state],
@@ -1812,11 +1856,20 @@ def create_ui():
         )
 
         def _merchant_v4(state):
-            state = state or []
-            msg = "⚠️ 暂未适配商家点餐系统，敬请期待。您可先手动填写、或使用图片/语音识别。"
-            return (state, _ingredient_table_display_html(state), msg,
-                    gr.update(choices=_ingredient_delete_choices(state), value=None),
-                    _basket_bar_html(len(state), state))
+            try:
+                state = state or []
+                msg = "⚠️ 暂未适配商家点餐系统，敬请期待。您可先手动填写、或使用图片/语音识别。"
+                return (state, _ingredient_table_display_html(state), msg,
+                        gr.update(choices=_ingredient_delete_choices(state), value=None),
+                        _basket_bar_html(len(state), state))
+            except Exception as e:
+                import traceback
+                print(f"Error in _merchant_v4: {e}")
+                traceback.print_exc()
+                return (state or [], _ingredient_table_display_html(state or []),
+                        f"❌ 商家系统错误：{str(e)}", 
+                        gr.update(choices=[], value=None),
+                        _basket_bar_html(0, []))
         btn_merchant.click(
             fn=_merchant_v4,
             inputs=[ingredient_table_state],
