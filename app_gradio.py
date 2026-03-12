@@ -752,13 +752,14 @@ def _show_generating():
 
 
 def _generate_and_go(ingredient_table, broth_label, texture_label, mode_label, allergen_text, num_people):
-    """生成方案并返回 (markdown, new_step, v0,v1,v2,v3, step1_message, plan_data)。失败时在步骤1显示错误。"""
+    """生成方案并返回 (markdown, new_step, v0,v1,v2,v3, step1_message, plan_data, plan_text)。失败时在步骤1显示错误。"""
     md, step, plan_data = generate_plan_ui(
         ingredient_table, broth_label, texture_label, mode_label, allergen_text, num_people=num_people,
     )
     if step == 2:
-        return md, 2, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), "", plan_data
-    return md, step, gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), md, None
+        plan_text = _plan_to_share_text(plan_data) if plan_data else ""
+        return md, 2, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), "", plan_data, plan_text
+    return md, step, gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), md, None, ""
 
 
 def _start_eating(plan_data):
@@ -1112,261 +1113,812 @@ def _timer_tick(plan_data, start_time, last_put_sec, last_take_sec):
     return display_html, new_put_sec, new_take_sec, voice_html_out
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 优化3：食材输入 UX — 批量粘贴 + 模糊搜索自动补全
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _search_ingredients_for_dropdown(query: str):
+    """输入关键词模糊搜索食材库，返回最多 8 条匹配名称列表，供自动补全下拉使用。"""
+    if not query or not str(query).strip():
+        return []
+    results = search_ingredient(str(query).strip())
+    return [r.name for r in results[:8]] if results else []
+
+
+def _batch_add_ingredients(batch_text: str, state: list):
+    """
+    批量添加食材：解析逗号/顿号/换行分隔的食材文本，批量追加到 state。
+    返回 (新 state, 展示表 HTML, 状态消息, 删除行下拉选项)。
+    """
+    names = parse_ingredients_from_text(batch_text or "")
+    if not names:
+        return (state, _ingredient_table_display_html(state or []),
+                "⚠️ 未解析到食材，请检查格式（用逗号、顿号或换行分隔）。",
+                gr.update(choices=_ingredient_delete_choices(state or []), value=None))
+    state = list(state or [])
+    added = []
+    for name in names:
+        name = name.strip()
+        if name:
+            state.append([name, "", 1])
+            added.append(name)
+    choices = _ingredient_delete_choices(state)
+    msg = f"✅ 已批量添加 {len(added)} 种食材：{'、'.join(added[:6])}{'…' if len(added) > 6 else ''}"
+    return state, _ingredient_table_display_html(state), msg, gr.update(choices=choices, value=None)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 优化4：方案分享 — 复制文字 + 生成二维码
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _plan_to_share_text(plan_data: dict) -> str:
+    """将方案数据转换为适合分享（可微信粘贴 / QR 编码）的纯文本摘要。"""
+    if not plan_data:
+        return ""
+    tl = plan_data.get("timeline") or {}
+    items = tl.get("items") or []
+    broth = tl.get("broth_type", "")
+    mode  = tl.get("user_mode", "")
+    total = tl.get("total_duration_display", "")
+    num   = plan_data.get("num_people") or ""
+    portions = plan_data.get("portions") or {}
+
+    lines = ["🍲 涮涮AI 火锅方案"]
+    meta = []
+    if broth:  meta.append(f"锅底：{broth}")
+    if mode:   meta.append(f"模式：{mode}")
+    if num:    meta.append(f"{num}人份")
+    if total:  meta.append(f"总时长：{total}")
+    if meta:   lines.append(" | ".join(meta))
+    lines.append("")
+    lines.append("【下锅顺序】")
+    for i, item in enumerate(items, 1):
+        name = item.get("ingredient_name", "")
+        t    = item.get("cooking_display", "")
+        p    = portions.get(name, 1)
+        pstr = f" x{p}" if p > 1 else ""
+        tip  = item.get("technique", "")
+        row  = f"{i}. {name}{pstr}  {t}"
+        if tip:
+            row += f"  （{tip}）"
+        lines.append(row)
+
+    warnings = plan_data.get("safety_warnings") or []
+    if warnings:
+        lines.append("")
+        lines.append("【安全提醒】")
+        for w in warnings:
+            lines.append(f"· {w}")
+
+    lines.append("")
+    lines.append("by 涮涮AI")
+    return "\n".join(lines)
+
+
+def _copy_plan_html(plan_text: str) -> str:
+    """
+    返回一段 HTML + JS，执行后将 plan_text 写入剪贴板，并在页面上显示提示。
+    使用 navigator.clipboard（HTTPS）并带 execCommand 兜底。
+    """
+    if not plan_text or not plan_text.strip():
+        return "<span style='color:#e67e22;font-size:.9em'>⚠️ 暂无方案内容，请先生成方案。</span>"
+    import json
+    text_js = json.dumps(plan_text)   # 安全转义，避免 XSS / JS 注入
+    uid = f"copy_btn_{int(time.time() * 1000) % 1000000}"
+    html = f"""
+<span id="{uid}_status" style="font-size:.88em;color:#27ae60"></span>
+<script>
+(function() {{
+  var text = {text_js};
+  function showOk() {{
+    var el = document.getElementById('{uid}_status');
+    if (el) {{ el.textContent = '✅ 已复制到剪贴板！'; setTimeout(function(){{ el.textContent=''; }}, 3500); }}
+  }}
+  function showFail(e) {{
+    var el = document.getElementById('{uid}_status');
+    if (el) {{ el.textContent = '⚠️ 复制失败，请手动选中下方文字复制。'; }}
+    console.warn('clipboard error', e);
+  }}
+  if (navigator.clipboard && window.isSecureContext) {{
+    navigator.clipboard.writeText(text).then(showOk, showFail);
+  }} else {{
+    try {{
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showOk();
+    }} catch(e) {{ showFail(e); }}
+  }}
+}})();
+</script>
+"""
+    return html
+
+
+def _generate_qr_html(plan_text: str) -> str:
+    """
+    用 qrcode 库将方案摘要生成二维码 PNG，以 base64 内嵌 HTML 返回。
+    若 qrcode/Pillow 未安装，返回安装提示。
+    二维码内容限 600 字符以保证扫描可靠性。
+    """
+    if not plan_text or not plan_text.strip():
+        return "<span style='color:#e67e22;font-size:.9em'>⚠️ 暂无方案内容，请先生成方案。</span>"
+    try:
+        import qrcode as _qrcode
+        from PIL import Image as _PILImage
+    except ImportError:
+        return ("<div style='padding:10px;border:1px solid #f0c040;border-radius:8px;"
+                "background:#fffde7;font-size:.88em;color:#7d6608'>"
+                "⚠️ 需要安装 qrcode[pil] 才能生成二维码：<br>"
+                "<code>pip install qrcode[pil]</code></div>")
+    # 截断到 600 字符，避免 QR 版本过高导致扫描困难
+    content = plan_text[:600]
+    try:
+        qr = _qrcode.QRCode(
+            version=None,
+            error_correction=_qrcode.constants.ERROR_CORRECT_L,
+            box_size=7,
+            border=3,
+        )
+        qr.add_data(content)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#1a1a1a", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        return (
+            "<div style='text-align:center;padding:10px 0'>"
+            f"<img src='data:image/png;base64,{b64}' "
+            "style='max-width:200px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12)'>"
+            "<div style='font-size:.78em;color:#999;margin-top:6px'>"
+            "用微信扫码即可查看方案</div>"
+            "</div>"
+        )
+    except Exception as e:
+        return f"<span style='color:#c0392b;font-size:.9em'>二维码生成失败：{e}</span>"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 前端设计 v4 — 按原型设计说明书重构的视觉组件生成器
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _homepage_html() -> str:
+    """首页海报 HTML（使用 CSS 绘制火锅场景，无需外部图片）"""
+    return """
+<div class="hp-wrap">
+  <div class="hp-tagline">三步走 · 定制你的专署火锅菜单</div>
+  <div class="hp-poster">
+    <div class="hp-poster-glow"></div>
+    <div class="hp-steam hp-steam--1"></div>
+    <div class="hp-steam hp-steam--2"></div>
+    <div class="hp-steam hp-steam--3"></div>
+    <div class="hp-poster-text">
+      <div class="hp-poster-headline">涮出无∞限可能</div>
+      <div class="hp-poster-brand">涮涮 AI</div>
+    </div>
+    <div class="hp-pot-wrap">
+      <div class="hp-pot-ring"></div>
+      <div class="hp-pot-lava"></div>
+      <div class="hp-pot-bubble b1"></div>
+      <div class="hp-pot-bubble b2"></div>
+      <div class="hp-pot-bubble b3"></div>
+    </div>
+    <div class="hp-poster-sub">探索火锅的无限可能</div>
+  </div>
+</div>
+"""
+
+
+def _step_header_html(step_num: str, step_title: str, extra_cls: str = "") -> str:
+    """统一步骤头部横条"""
+    return (f'<div class="shuai-step-bar {extra_cls}">'
+            f'<span class="shuai-step-num">{step_num}</span>'
+            f'<span class="shuai-step-title">{step_title}</span>'
+            f'</div>')
+
+
+def _basket_drawer_html(state: list) -> str:
+    """购物车抽屉内的食材列表 HTML（只读）"""
+    if not state:
+        return '<p class="drawer-empty">尚未添加食材，请在上方输入。</p>'
+    rows = []
+    for row in state:
+        name = (row[0] if row else "") or ""
+        if not name:
+            continue
+        t_val = row[1] if len(row) > 1 else None
+        portion = int(row[2]) if len(row) > 2 and row[2] else 1
+        try:
+            t = int(float(t_val)) if t_val and str(t_val).strip() not in ("", "0", "0.0") else 0
+        except Exception:
+            t = 0
+        t_disp = f"{t}秒" if t > 0 else "库默认"
+        rows.append(
+            f'<div class="drawer-item">'
+            f'<span class="di-name">{name}</span>'
+            f'<span class="di-meta">{t_disp} · {portion}份</span>'
+            f'</div>'
+        )
+    return "\n".join(rows) if rows else '<p class="drawer-empty">无有效食材。</p>'
+
+
+def _basket_bar_html(count: int, state: list) -> str:
+    """
+    底部购物车栏（仿美团风格）+ 上拉抽屉。
+    点击篮子图标展开抽屉浏览已选食材；点击「下一步」触发隐藏的 Gradio 按钮。
+    """
+    items_list = [r[0] for r in (state or []) if r and r[0]]
+    preview = "、".join(items_list[:3]) + ("…" if len(items_list) > 3 else "") if items_list else "还未添加食材"
+    badge = f'<span class="bsk-badge">{count}</span>' if count > 0 else ""
+    drawer_content = _basket_drawer_html(state or [])
+    return f"""
+<div class="shuai-basket-area">
+  <div class="shuai-basket-bar">
+    <div class="bsk-left" onclick="shuaiOpenBasket(event)">
+      <span class="bsk-icon">🛒{badge}</span>
+      <span class="bsk-preview">{preview}</span>
+    </div>
+    <div class="bsk-right">
+      <span class="bsk-count">共{count}件食材</span>
+      <button class="bsk-next-btn" onclick="shuaiGrNext(event)">下一步 ›</button>
+    </div>
+  </div>
+
+  <div class="shuai-overlay" id="shuai-overlay-{count}" onclick="shuaiCloseBasket(this)" style="display:none"></div>
+  <div class="shuai-drawer" id="shuai-drawer-{count}">
+    <div class="shuai-drawer-handle"></div>
+    <div class="shuai-drawer-header">
+      <span class="shuai-drawer-title">已选食材（{count}件）</span>
+      <button class="shuai-drawer-close" onclick="shuaiCloseBasket2('{count}')">✕</button>
+    </div>
+    <div class="shuai-drawer-body">{drawer_content}</div>
+    <div class="shuai-drawer-footer">
+      <button class="shuai-drawer-next" onclick="shuaiCloseBasket2('{count}'); setTimeout(shuaiGrNextRaw, 120)">下一步</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){{
+  var cnt = '{count}';
+  function openDrawer(){{
+    var o=document.getElementById('shuai-overlay-'+cnt);
+    var d=document.getElementById('shuai-drawer-'+cnt);
+    if(o)o.style.display='block';
+    if(d)d.classList.add('open');
+  }}
+  function closeDrawer(){{
+    var o=document.getElementById('shuai-overlay-'+cnt);
+    var d=document.getElementById('shuai-drawer-'+cnt);
+    if(o)o.style.display='none';
+    if(d)d.classList.remove('open');
+  }}
+  function grNext(){{
+    var c=document.getElementById('btn-next-hidden');
+    if(c){{var b=c.querySelector('button');if(b){{b.click();return;}}}}
+    // fallback: try by elem selector
+    var btns=document.querySelectorAll('#btn-next-hidden button');
+    if(btns.length)btns[0].click();
+  }}
+  window.shuaiOpenBasket=openDrawer;
+  window.shuaiCloseBasket=function(el){{closeDrawer();}};
+  window.shuaiCloseBasket2=closeDrawer;
+  window.shuaiGrNext=function(e){{if(e)e.stopPropagation();grNext();}};
+  window.shuaiGrNextRaw=grNext;
+}})();
+</script>
+"""
+
+
+# ─── 新增导航函数（6输出版：包含 step_home）────────────────────────────────
+
+def _nav_to_home():
+    """回到首页（step_state=-1），显示 step_home，隐藏其他。"""
+    return (-1,
+            gr.update(visible=True),   # step_home
+            gr.update(visible=False),  # step0
+            gr.update(visible=False),  # step1
+            gr.update(visible=False),  # step2
+            gr.update(visible=False))  # step3
+
+
+def _nav_restart_v4(step):
+    """重新开始 → 回到首页。"""
+    return _nav_to_home()
+
+
+def _nav_back_timer_v4(step, start_time):
+    """从计时页返回首页，同时清理内存缓存。"""
+    if start_time and start_time > 0:
+        _cleanup_timer_state(start_time)
+    return _nav_to_home()
+
+
+def _nav_next_v4(step):
+    """下一步（含 step_home 输出版）。"""
+    s = step
+    if s < 0:
+        new = 0
+    elif s < 3:
+        new = s + 1
+    else:
+        new = s
+    _vis = {
+        -1: (True,  False, False, False, False),
+         0: (False, True,  False, False, False),
+         1: (False, False, True,  False, False),
+         2: (False, False, False, True,  False),
+         3: (False, False, False, False, True),
+    }.get(new, (False, True, False, False, False))
+    return (new,) + tuple(gr.update(visible=v) for v in _vis)
+
+
+def _nav_prev_v4(step):
+    """上一步（含 step_home 输出版）。"""
+    s = step
+    if s <= 0:
+        new = -1
+    else:
+        new = s - 1
+    _vis = {
+        -1: (True,  False, False, False, False),
+         0: (False, True,  False, False, False),
+         1: (False, False, True,  False, False),
+         2: (False, False, False, True,  False),
+         3: (False, False, False, False, True),
+    }.get(new, (True, False, False, False, False))
+    return (new,) + tuple(gr.update(visible=v) for v in _vis)
+
+
 def create_ui():
-    """构建 Gradio 界面：步骤1 食材 → 步骤2 锅底/偏好 → 步骤3 方案结果 → 步骤4 吃饭计时。"""
+    """构建 Gradio 界面：首页 → 步骤1食材 → 步骤2偏好 → 步骤3方案 → 步骤4计时。"""
     with gr.Blocks(title="涮涮AI - 智能火锅助手") as demo:
-        gr.Markdown("# 🍲 涮涮AI — 智能火锅助手")
-        step_state = gr.State(0)
+
+        # ── 注入 Google Fonts ───────────────────────────────────────────────
+        gr.HTML(
+            '<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900'
+            '&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">'
+        )
+
+        # ── States ─────────────────────────────────────────────────────────
+        step_state = gr.State(-1)          # -1=首页 0=食材 1=偏好 2=方案 3=计时
         plan_data_state = gr.State(None)
+        plan_text_state = gr.State("")
         start_time_state = gr.State(0)
         last_beeped_put = gr.State(-1)
         last_beeped_take = gr.State(-1)
+        ingredient_table_state = gr.State([])
 
-        # 步骤 0：输入食材（表单添加 + 只读表格）
-        step0 = gr.Column(visible=True, elem_id="step0-ingredients")
-        ingredient_table_state = gr.State([])  # list of [name, time_user, portion]，time_user 为空表示用库默认
+        # ══════════════════════════════════════════════════════════════════
+        # 首页（页面2）
+        # ══════════════════════════════════════════════════════════════════
+        step_home = gr.Column(visible=True, elem_id="page-home")
+        with step_home:
+            gr.HTML(value=_homepage_html())
+            btn_enter = gr.Button("开始", elem_id="btn-enter-home", variant="primary")
+            gr.HTML('<div class="hp-bounce">▼</div>')
+
+        # ══════════════════════════════════════════════════════════════════
+        # 步骤1（页面3）：输入食材
+        # ══════════════════════════════════════════════════════════════════
+        step0 = gr.Column(visible=False, elem_id="page-step0")
         with step0:
-            gr.Markdown("### 步骤 1/3：输入食材")
-            gr.Markdown("**请在下方填写食材名称后点击「添加一行」加入列表；涮煮时间可留空使用库内默认，份数默认为 1。**")
-            with gr.Row(equal_height=True, elem_id="ingredient-form-row"):
-                ingredient_name_input = gr.Textbox(
-                    label="食材名称",
-                    placeholder="如：毛肚、肥牛、土豆片",
-                    scale=2,
-                    lines=2,
+            gr.HTML(_step_header_html("第一步", "输入食材"))
+
+            # ── 食材输入卡片区 ─────────────────────────────────────────
+            with gr.Group(elem_id="ing-card-group"):
+                gr.HTML('<div class="ing-card-title">新增食材</div>')
+                with gr.Row(elem_id="ing-input-top"):
+                    with gr.Column(scale=3, elem_id="ing-text-col"):
+                        ingredient_name_input = gr.Textbox(
+                            label="🖊 食材名称",
+                            placeholder="如：毛肚、肥牛、土豆片",
+                            lines=1, elem_id="ing-name-tb",
+                        )
+                        ingredient_search_dd = gr.Dropdown(
+                            label="🔍 搜索补全（输入后下拉选择）",
+                            choices=[], value=None,
+                            allow_custom_value=False,
+                            interactive=True,
+                            elem_id="ing-search-dd",
+                        )
+                        ingredient_default_hint = gr.Markdown("", visible=True)
+                    with gr.Column(scale=2, elem_id="ing-voice-col"):
+                        voice_input = gr.Audio(
+                            label="🎤 语音输入",
+                            sources=["microphone", "upload"],
+                            type="filepath",
+                        )
+                        btn_voice = gr.Button("识别语音", size="sm", elem_id="btn-voice-rec")
+                        voice_status = gr.Markdown("", visible=True)
+
+                with gr.Row(elem_id="time-portion-row"):
+                    ingredient_time_input = gr.Slider(
+                        label="涮煮时间(秒)",
+                        minimum=0, maximum=600, value=0, step=5,
+                        info="留0则使用库默认", scale=2,
+                    )
+                    ingredient_portion_input = gr.Slider(
+                        label="份数",
+                        minimum=1, maximum=99, value=1, step=1, scale=1,
+                    )
+                with gr.Row(elem_id="ing-confirm-row"):
+                    btn_add_row = gr.Button("✔ 加入清单", variant="primary", elem_id="btn-confirm-add")
+                    btn_reject_input = gr.Button("✘ 清空", variant="secondary", elem_id="btn-clear-input")
+
+            # ── 识图输入 ───────────────────────────────────────────────
+            with gr.Group(elem_id="img-rec-group"):
+                gr.HTML('<div class="shuai-sec-sep">📷 识图输入</div>')
+                image_input = gr.Image(
+                    label="上传菜单 / 菜品图",
+                    type="filepath", sources=["upload"],
                 )
-                ingredient_time_input = gr.Slider(
-                    label="涮煮时间(秒)",
-                    minimum=0,
-                    maximum=600,
-                    value=0,
-                    step=5,
-                    info="留空使用库默认",
-                    scale=1,
+                image_status = gr.Markdown("", visible=True)
+                btn_image = gr.Button("识别图片并填入食材", size="sm")
+
+            # ── 批量粘贴 ───────────────────────────────────────────────
+            with gr.Accordion("📋 批量粘贴食材（点击展开）", open=False, elem_id="batch-acc"):
+                gr.Markdown("将食材用**逗号、顿号或换行**分隔后粘贴，一键添加。")
+                batch_paste_input = gr.Textbox(
+                    label="",
+                    placeholder="肥牛、毛肚、鸭肠、虾滑、土豆片、金针菇、菠菜",
+                    lines=3,
                 )
-                ingredient_portion_input = gr.Slider(
-                    label="份数",
-                    minimum=1,
-                    maximum=99,
-                    value=1,
-                    step=1,
-                    scale=1,
-                )
-            ingredient_default_hint = gr.Markdown(value="", visible=True)
-            with gr.Row(equal_height=True, elem_id="ingredient-actions-row"):
-                btn_add_row = gr.Button("➕ 添加一行", variant="primary")
-                ingredient_delete_dd = gr.Dropdown(
-                    label="选择要删除的行",
-                    choices=[],
-                    value=None,
-                    allow_custom_value=False,
-                    scale=2,
-                )
-                btn_del_selected = gr.Button("删除所选行", variant="secondary")
-            gr.Markdown("**已添加的食材**")
+                with gr.Row():
+                    btn_batch_add = gr.Button("一键批量添加", variant="primary", size="sm")
+                    btn_batch_clear = gr.Button("清空", variant="secondary", size="sm")
+                batch_status = gr.Markdown("")
+
+            # ── 商家系统 ───────────────────────────────────────────────
+            merchant_status = gr.Markdown("", visible=True, elem_id="merchant-status")
+            btn_merchant = gr.Button(
+                "🔗 一键接入商家点餐系统",
+                size="sm", variant="secondary", elem_id="btn-merchant",
+            )
+
+            # ── 已添加食材表格（含删除）────────────────────────────────
+            gr.HTML('<div class="shuai-sec-sep" style="margin-top:8px">🧺 已添加的食材</div>')
             ingredient_table = gr.HTML(
                 value=_ingredient_table_display_html([]),
                 elem_id="ingredient-table-html",
                 elem_classes=["ingredient-table-no-scroll"],
             )
-            gr.Markdown("**或上传图片识别食材**")
-            image_input = gr.Image(
-                label="上传菜单/菜品图",
-                type="filepath",
-                sources=["upload"],
-            )
-            image_status = gr.Markdown(value="", visible=True)
-            btn_image = gr.Button("识别图片并填入食材", size="sm")
-            gr.Markdown("**或使用语音输入**")
-            voice_input = gr.Audio(
-                label="语音输入食材",
-                sources=["microphone", "upload"],
-                type="filepath",
-            )
-            voice_status = gr.Markdown(value="", visible=True)
-            btn_voice = gr.Button("识别语音并填入食材", size="sm")
-            gr.Markdown("**或一键接入商家点餐系统**")
-            merchant_status = gr.Markdown(value="", visible=True)
-            btn_merchant = gr.Button("🔗 一键接入商家点餐系统", size="sm", variant="secondary")
-            btn_next = gr.Button("下一步：选择锅底与偏好", variant="primary")
+            with gr.Row(elem_id="delete-row"):
+                ingredient_delete_dd = gr.Dropdown(
+                    label="选择要删除的行",
+                    choices=[], value=None,
+                    allow_custom_value=False, scale=3,
+                )
+                btn_del_selected = gr.Button("删除所选行", variant="secondary", scale=1)
 
-        # 步骤 1：锅底与偏好
-        step1 = gr.Column(visible=False)
+            # ── 底部购物车栏（仿美团，含上拉抽屉）────────────────────
+            basket_bar_html = gr.HTML(
+                value=_basket_bar_html(0, []),
+                elem_id="basket-bar-html",
+            )
+            # 隐藏的「下一步」Gradio 按钮，由篮子栏中的 JS 触发
+            btn_next = gr.Button("下一步", elem_id="btn-next-hidden", visible=False)
+
+        # ══════════════════════════════════════════════════════════════════
+        # 步骤2（页面4）：锅底与偏好
+        # ══════════════════════════════════════════════════════════════════
+        step1 = gr.Column(visible=False, elem_id="page-step1")
         with step1:
-            gr.Markdown("### 步骤 2/3：锅底与偏好")
-            broth_dd = gr.Dropdown(
-                label="锅底类型",
-                choices=[t for t, _ in BROTH_CHOICES],
-                value="麻辣红汤",
-            )
-            texture_dd = gr.Dropdown(
-                label="口感偏好",
-                choices=[t for t, _ in TEXTURE_CHOICES],
-                value="标准",
-            )
-            mode_dd = gr.Dropdown(
-                label="用户模式",
-                choices=[t for t, _ in MODE_CHOICES],
-                value="普通",
-            )
-            allergen_input = gr.Textbox(
-                label="需避免的过敏原（可选）",
-                placeholder="如：虾、鱼",
-                lines=1,
-            )
-            num_people_input = gr.Number(
-                label="就餐人数",
-                value=2,
-                minimum=1,
-                maximum=99,
-                step=1,
-                precision=0,
-                info="一起吃饭的人数",
-            )
-            load_pref_btn = gr.Button("加载我的偏好", size="sm")
-            pref_status = gr.Markdown(value="", elem_id="pref_status")
-            result_status = gr.Markdown(value="", elem_id="result_status")
-            with gr.Row():
-                btn_prev = gr.Button("上一步")
-                btn_generate = gr.Button("生成涮煮方案", variant="primary")
+            gr.HTML(_step_header_html("第二步", "选择锅底 & 偏好"))
 
-        # 步骤 2：方案结果
-        step2 = gr.Column(visible=False)
+            # ── 大卡片：锅底（含锅底图标模拟）────────────────────────
+            broth_acc = gr.Accordion(
+                "🍲 锅底      麻辣红汤", open=False, elem_classes=["pref-acc", "pref-acc--hero"],
+                elem_id="broth-acc",
+            )
+            with broth_acc:
+                broth_dd = gr.Radio(
+                    choices=[t for t, _ in BROTH_CHOICES],
+                    value="麻辣红汤", label="", elem_id="broth-radio",
+                )
+
+            # ── 普通卡片：口感 / 模式 ─────────────────────────────────
+            texture_acc = gr.Accordion(
+                "🌶 口感偏好      标准", open=False, elem_classes=["pref-acc"],
+            )
+            with texture_acc:
+                texture_dd = gr.Radio(
+                    choices=[t for t, _ in TEXTURE_CHOICES],
+                    value="标准", label="",
+                )
+
+            mode_acc = gr.Accordion(
+                "👤 用户模式      普通", open=False, elem_classes=["pref-acc"],
+            )
+            with mode_acc:
+                mode_dd = gr.Radio(
+                    choices=[t for t, _ in MODE_CHOICES],
+                    value="普通", label="",
+                )
+
+            # ── 下排两个半宽卡片 ───────────────────────────────────────
+            with gr.Row(elem_id="pref-half-row"):
+                with gr.Column(elem_id="allergen-col"):
+                    allergen_acc = gr.Accordion(
+                        "⚠️ 过敏原      无", open=False, elem_classes=["pref-acc"],
+                    )
+                    with allergen_acc:
+                        allergen_input = gr.Textbox(
+                            label="", placeholder="如：虾、鱼", lines=1,
+                        )
+                with gr.Column(elem_id="people-col"):
+                    people_acc = gr.Accordion(
+                        "👥 就餐人数      2人", open=False, elem_classes=["pref-acc"],
+                    )
+                    with people_acc:
+                        num_people_input = gr.Number(
+                            label="", value=2, minimum=1, maximum=99,
+                            step=1, precision=0,
+                        )
+
+            load_pref_btn = gr.Button("📂 加载我的偏好", size="sm", elem_id="load-pref-btn")
+            pref_status = gr.Markdown("", elem_id="pref_status")
+            result_status = gr.Markdown("", elem_id="result_status")
+
+            with gr.Row(elem_id="step1-nav-row"):
+                btn_prev = gr.Button("← 上一步", elem_id="btn-prev-s1")
+                btn_generate = gr.Button("⚡ 生成涮煮方案", variant="primary", elem_id="btn-generate")
+
+        # ══════════════════════════════════════════════════════════════════
+        # 步骤3（页面5）：方案结果
+        # ══════════════════════════════════════════════════════════════════
+        step2 = gr.Column(visible=False, elem_id="page-step2")
         with step2:
-            gr.Markdown("### 步骤 3/3：涮煮方案")
-            output_md = gr.Markdown(value="方案将显示在此。", label="方案结果")
-            with gr.Row():
-                btn_restart = gr.Button("重新开始")
-                btn_start_eating = gr.Button("开始吃饭", variant="primary")
+            gr.HTML(_step_header_html("第三步", "涮煮方案"))
 
-        # 步骤 3：吃饭计时页（第四页）
-        step3 = gr.Column(visible=False)
+            # 屏中屏滚动区
+            with gr.Group(elem_id="plan-scroll-wrap"):
+                output_md = gr.Markdown("方案将显示在此。", label="", elem_id="plan-output-md")
+
+            # 分享按钮（优化4）
+            with gr.Row(elem_id="share-row"):
+                btn_copy_plan = gr.Button("📋 复制方案文字", size="sm", variant="secondary")
+                btn_gen_qr = gr.Button("📱 生成分享二维码", size="sm", variant="secondary")
+            copy_status_html = gr.HTML("", elem_id="copy-status-html")
+            qr_html = gr.HTML("", elem_id="qr-display-html")
+
+            # 大圆形「开始吃饭」按钮
+            gr.HTML('<div class="eating-btn-wrap">')
+            btn_start_eating = gr.Button("开始\n吃饭", variant="primary", elem_id="btn-start-eating")
+            gr.HTML('</div>')
+
+            with gr.Row(elem_id="step2-nav-row"):
+                btn_restart = gr.Button("↩ 重新开始", elem_id="btn-restart")
+                btn_prev2 = gr.Button("← 上一步", elem_id="btn-prev-s2")
+
+        # ══════════════════════════════════════════════════════════════════
+        # 步骤4（页面6）：吃饭计时
+        # ══════════════════════════════════════════════════════════════════
+        step3 = gr.Column(visible=False, elem_id="page-step3")
         with step3:
-            gr.Markdown("### 🍲 吃饭计时 — 按提示下锅/捞出")
+            gr.HTML(_step_header_html("", "🍲 吃饭计时", "shuai-step-bar--timer"))
             timer_reminder_md = gr.HTML(
                 value="<p style='color:#bbb;text-align:center;padding:40px;font-size:.95em'>点击「开始吃饭」后计时将在此显示。</p>",
                 elem_id="hotpot-timer-display",
             )
-            timer_beep_html = gr.HTML(value="")
-            timer_bottom_md = gr.Markdown(value="")
-            btn_back_from_timer = gr.Button("结束计时，返回首页")
+            timer_beep_html = gr.HTML("")
+            timer_bottom_md = gr.Markdown("")
+            btn_back_from_timer = gr.Button("结束计时，返回首页", elem_id="btn-back-timer")
 
-        def _update_hint(name, time_val):
-            return _ingredient_lookup_hint(name, time_val)
+        # ══════════════════════════════════════════════════════════════════
+        # Event Bindings
+        # ══════════════════════════════════════════════════════════════════
+
+        # ── 首页 → 步骤1 ─────────────────────────────────────────────────
+        btn_enter.click(
+            fn=lambda: (0, gr.update(visible=False), gr.update(visible=True),
+                        gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)),
+            inputs=[],
+            outputs=[step_state, step_home, step0, step1, step2, step3],
+        )
+
+        # ── 步骤1：食材输入 ───────────────────────────────────────────────
         ingredient_name_input.change(
-            fn=_update_hint,
-            inputs=[ingredient_name_input, ingredient_time_input],
+            fn=_search_ingredients_for_dropdown,
+            inputs=[ingredient_name_input], outputs=[ingredient_search_dd],
+        )
+        def _hint(n, t):
+            return _ingredient_lookup_hint(n, t)
+        ingredient_name_input.change(
+            fn=_hint, inputs=[ingredient_name_input, ingredient_time_input],
             outputs=[ingredient_default_hint],
         )
         ingredient_time_input.change(
-            fn=_update_hint,
-            inputs=[ingredient_name_input, ingredient_time_input],
+            fn=_hint, inputs=[ingredient_name_input, ingredient_time_input],
             outputs=[ingredient_default_hint],
         )
-        def _add_row_and_update_dropdown(name, time_val, portion, state):
-            state, _, _, t, p, _, choices = _add_ingredient_row(name, time_val, portion, state)
-            return state, _ingredient_table_display_html(state), "", t, p, "", gr.update(choices=choices, value=None)
+        ingredient_search_dd.change(
+            fn=lambda v: v or "",
+            inputs=[ingredient_search_dd], outputs=[ingredient_name_input],
+        )
+
+        def _add_v4(name, t, p, state):
+            state, _, _, nt, np_, _, choices = _add_ingredient_row(name, t, p, state)
+            return (state, _ingredient_table_display_html(state),
+                    "", nt, np_, "",
+                    gr.update(choices=choices, value=None),
+                    _basket_bar_html(len(state), state))
         btn_add_row.click(
-            fn=_add_row_and_update_dropdown,
-            inputs=[ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_table_state],
-            outputs=[ingredient_table_state, ingredient_table, ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_default_hint, ingredient_delete_dd],
-        )
-        def _on_delete_selected(state, selected):
-            new_state, _, choices = _delete_selected_ingredient_row(state, selected)
-            return new_state, _ingredient_table_display_html(new_state), gr.update(choices=choices, value=None)
-        btn_del_selected.click(
-            fn=_on_delete_selected,
-            inputs=[ingredient_table_state, ingredient_delete_dd],
-            outputs=[ingredient_table_state, ingredient_table, ingredient_delete_dd],
-        )
-        def _image_and_dropdown(image, state):
-            state, _, status, choices = image_to_ingredients(image, state)
-            return state, _ingredient_table_display_html(state), status, gr.update(choices=choices, value=None)
-        btn_image.click(
-            fn=_image_and_dropdown,
-            inputs=[image_input, ingredient_table_state],
-            outputs=[ingredient_table_state, ingredient_table, image_status, ingredient_delete_dd],
-        )
-        def _voice_and_dropdown(audio, state):
-            state, _, status, choices = voice_to_ingredients(audio, state)
-            return state, _ingredient_table_display_html(state), status, gr.update(choices=choices, value=None)
-        btn_voice.click(
-            fn=_voice_and_dropdown,
-            inputs=[voice_input, ingredient_table_state],
-            outputs=[ingredient_table_state, ingredient_table, voice_status, ingredient_delete_dd],
+            fn=_add_v4,
+            inputs=[ingredient_name_input, ingredient_time_input,
+                    ingredient_portion_input, ingredient_table_state],
+            outputs=[ingredient_table_state, ingredient_table, ingredient_name_input,
+                     ingredient_time_input, ingredient_portion_input,
+                     ingredient_default_hint, ingredient_delete_dd, basket_bar_html],
         )
 
-        def _merchant_connect_placeholder(current_state):
-            """虚拟按键：暂未适配商家点餐系统，仅提示。"""
-            choices = _ingredient_delete_choices(current_state or [])
-            return current_state, _ingredient_table_display_html(current_state or []), "⚠️ 暂未适配商家点餐系统，敬请期待。您可先手动填写食材表、或使用图片/语音识别。", gr.update(choices=choices, value=None)
-
-        btn_merchant.click(
-            fn=_merchant_connect_placeholder,
-            inputs=[ingredient_table_state],
-            outputs=[ingredient_table_state, ingredient_table, merchant_status, ingredient_delete_dd],
-        )
-        # 导航：下一步 / 上一步 / 重新开始
-        btn_next.click(
-            fn=_nav_next,
-            inputs=[step_state],
-            outputs=[step_state, step0, step1, step2, step3],
-        )
-        btn_prev.click(
-            fn=_nav_prev,
-            inputs=[step_state],
-            outputs=[step_state, step0, step1, step2, step3],
-        )
-        btn_restart.click(
-            fn=_nav_restart,
-            inputs=[step_state],
-            outputs=[step_state, step0, step1, step2, step3],
-        )
-        btn_back_from_timer.click(
-            fn=_nav_restart_from_timer,
-            inputs=[step_state, start_time_state],
-            outputs=[step_state, step0, step1, step2, step3],
-        )
-        load_pref_btn.click(
-            fn=load_preference_ui,
+        btn_reject_input.click(
+            fn=lambda: ("", 0, 1, ""),
             inputs=[],
-            outputs=[broth_dd, texture_dd, mode_dd, allergen_input, pref_status],
+            outputs=[ingredient_name_input, ingredient_time_input,
+                     ingredient_portion_input, ingredient_default_hint],
         )
-        # 先显示「请等待…」并跳到结果页，再执行生成（.then），避免长时间无反馈
+
+        def _del_v4(state, sel):
+            new_state, _, choices = _delete_selected_ingredient_row(state, sel)
+            return (new_state, _ingredient_table_display_html(new_state),
+                    gr.update(choices=choices, value=None),
+                    _basket_bar_html(len(new_state), new_state))
+        btn_del_selected.click(
+            fn=_del_v4,
+            inputs=[ingredient_table_state, ingredient_delete_dd],
+            outputs=[ingredient_table_state, ingredient_table,
+                     ingredient_delete_dd, basket_bar_html],
+        )
+
+        def _batch_v4(text, state):
+            new_state, html, msg, _ = _batch_add_ingredients(text, state)
+            return (new_state, html, msg,
+                    gr.update(choices=_ingredient_delete_choices(new_state), value=None),
+                    _basket_bar_html(len(new_state), new_state))
+        btn_batch_add.click(
+            fn=_batch_v4,
+            inputs=[batch_paste_input, ingredient_table_state],
+            outputs=[ingredient_table_state, ingredient_table, batch_status,
+                     ingredient_delete_dd, basket_bar_html],
+        )
+        btn_batch_clear.click(fn=lambda: "", inputs=[], outputs=[batch_paste_input])
+
+        def _img_v4(img, state):
+            state, _, status, choices = image_to_ingredients(img, state)
+            return (state, _ingredient_table_display_html(state), status,
+                    gr.update(choices=choices, value=None),
+                    _basket_bar_html(len(state), state))
+        btn_image.click(
+            fn=_img_v4,
+            inputs=[image_input, ingredient_table_state],
+            outputs=[ingredient_table_state, ingredient_table, image_status,
+                     ingredient_delete_dd, basket_bar_html],
+        )
+
+        def _voice_v4(audio, state):
+            state, _, status, choices = voice_to_ingredients(audio, state)
+            return (state, _ingredient_table_display_html(state), status,
+                    gr.update(choices=choices, value=None),
+                    _basket_bar_html(len(state), state))
+        btn_voice.click(
+            fn=_voice_v4,
+            inputs=[voice_input, ingredient_table_state],
+            outputs=[ingredient_table_state, ingredient_table, voice_status,
+                     ingredient_delete_dd, basket_bar_html],
+        )
+
+        def _merchant_v4(state):
+            state = state or []
+            msg = "⚠️ 暂未适配商家点餐系统，敬请期待。您可先手动填写、或使用图片/语音识别。"
+            return (state, _ingredient_table_display_html(state), msg,
+                    gr.update(choices=_ingredient_delete_choices(state), value=None),
+                    _basket_bar_html(len(state), state))
+        btn_merchant.click(
+            fn=_merchant_v4,
+            inputs=[ingredient_table_state],
+            outputs=[ingredient_table_state, ingredient_table, merchant_status,
+                     ingredient_delete_dd, basket_bar_html],
+        )
+
+        # 购物车栏「下一步」→ 步骤2
+        btn_next.click(
+            fn=_nav_next_v4,
+            inputs=[step_state],
+            outputs=[step_state, step_home, step0, step1, step2, step3],
+        )
+
+        # ── 步骤2：锅底与偏好 ─────────────────────────────────────────────
+        # Accordion 标签随选择实时更新
+        broth_dd.change(
+            fn=lambda v: gr.update(label=f"🍲 锅底      {v}"),
+            inputs=[broth_dd], outputs=[broth_acc],
+        )
+        texture_dd.change(
+            fn=lambda v: gr.update(label=f"🌶 口感偏好      {v}"),
+            inputs=[texture_dd], outputs=[texture_acc],
+        )
+        mode_dd.change(
+            fn=lambda v: gr.update(label=f"👤 用户模式      {v}"),
+            inputs=[mode_dd], outputs=[mode_acc],
+        )
+        allergen_input.change(
+            fn=lambda v: gr.update(label=f"⚠️ 过敏原      {v.strip() or '无'}"),
+            inputs=[allergen_input], outputs=[allergen_acc],
+        )
+        num_people_input.change(
+            fn=lambda v: gr.update(label=f"👥 就餐人数      {int(v or 2)}人"),
+            inputs=[num_people_input], outputs=[people_acc],
+        )
+
+        def _load_pref_v4():
+            broth, texture, mode, allergen, status = load_preference_ui()
+            num = 2
+            return (broth, texture, mode, allergen, num, status,
+                    gr.update(label=f"🍲 锅底      {broth}"),
+                    gr.update(label=f"🌶 口感偏好      {texture}"),
+                    gr.update(label=f"👤 用户模式      {mode}"),
+                    gr.update(label=f"⚠️ 过敏原      {allergen.strip() or '无'}"))
+        load_pref_btn.click(
+            fn=_load_pref_v4, inputs=[],
+            outputs=[broth_dd, texture_dd, mode_dd, allergen_input, num_people_input,
+                     pref_status, broth_acc, texture_acc, mode_acc, allergen_acc],
+        )
+
+        btn_prev.click(
+            fn=_nav_prev_v4,
+            inputs=[step_state],
+            outputs=[step_state, step_home, step0, step1, step2, step3],
+        )
+
         btn_generate.click(
             fn=_show_generating,
             inputs=[],
             outputs=[output_md, step_state, step0, step1, step2, step3, result_status],
         ).then(
             fn=_generate_and_go,
-            inputs=[
-                ingredient_table_state,
-                broth_dd,
-                texture_dd,
-                mode_dd,
-                allergen_input,
-                num_people_input,
-            ],
-            outputs=[output_md, step_state, step0, step1, step2, step3, result_status, plan_data_state],
+            inputs=[ingredient_table_state, broth_dd, texture_dd,
+                    mode_dd, allergen_input, num_people_input],
+            outputs=[output_md, step_state, step0, step1, step2, step3,
+                     result_status, plan_data_state, plan_text_state],
+        )
+
+        # ── 步骤3：方案结果 ───────────────────────────────────────────────
+        btn_copy_plan.click(
+            fn=_copy_plan_html,
+            inputs=[plan_text_state], outputs=[copy_status_html],
+        )
+        btn_gen_qr.click(
+            fn=_generate_qr_html,
+            inputs=[plan_text_state], outputs=[qr_html],
+        )
+        btn_restart.click(
+            fn=_nav_restart_v4,
+            inputs=[step_state],
+            outputs=[step_state, step_home, step0, step1, step2, step3],
+        )
+        btn_prev2.click(
+            fn=_nav_prev_v4,
+            inputs=[step_state],
+            outputs=[step_state, step_home, step0, step1, step2, step3],
         )
         btn_start_eating.click(
             fn=_start_eating,
             inputs=[plan_data_state],
-            outputs=[
-                start_time_state,
-                step_state,
-                step0,
-                step1,
-                step2,
-                step3,
-                timer_bottom_md,
-                last_beeped_put,
-                last_beeped_take,
-                timer_reminder_md,
-                timer_beep_html,
-            ],
+            outputs=[start_time_state, step_state, step0, step1, step2, step3,
+                     timer_bottom_md, last_beeped_put, last_beeped_take,
+                     timer_reminder_md, timer_beep_html],
         )
-        # 计时器：仅在步骤 3 时每秒更新提醒（通过 Timer 驱动）
+
+        # ── 步骤4：吃饭计时 ───────────────────────────────────────────────
+        btn_back_from_timer.click(
+            fn=_nav_back_timer_v4,
+            inputs=[step_state, start_time_state],
+            outputs=[step_state, step_home, step0, step1, step2, step3],
+        )
         timer = gr.Timer(value=1)
         timer.tick(
             fn=_timer_tick,
@@ -1374,50 +1926,379 @@ def create_ui():
             outputs=[timer_reminder_md, last_beeped_put, last_beeped_take, timer_beep_html],
         )
 
-        gr.Markdown("---\n💡 按步骤操作：输入食材 → 选择锅底与偏好 → 生成方案 → 可「重新开始」或「开始吃饭」进入计时提醒。")
     return demo
 
 
 if __name__ == "__main__":
     demo = create_ui()
     demo.launch(
-        server_name="0.0.0.0",  # 开放访问：允许局域网/外网通过 IP 访问
+        server_name="0.0.0.0",
         server_port=7860,
-        share=os.environ.get("HOTPOT_GRADIO_SHARE", "").strip() in ("1", "true", "yes"),  # 需公网链接时设 HOTPOT_GRADIO_SHARE=1
+        share=os.environ.get("HOTPOT_GRADIO_SHARE", "").strip() in ("1", "true", "yes"),
         theme=gr.themes.Soft(primary_hue="orange"),
         css="""
-        .main-header { font-size: 1.4em; margin-bottom: 0.5em; }
-        .gr-markdown { font-size: 0.95em; }
-        #hotpot-timer-display { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-        #ingredient-form-row > div, #ingredient-actions-row > div { align-self: stretch; display: flex; flex-direction: column; }
-        #ingredient-form-row .wrap, #ingredient-actions-row .wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-        /* 食材表格区域：禁止上下滚动、隐藏滚动条 */
-        #ingredient-table-html,
-        .ingredient-table-no-scroll,
-        #ingredient-table-html *,
-        .ingredient-table-no-scroll *,
-        .ingredient-table-wrap,
-        .ingredient-table-wrap * {
-            overflow: visible !important;
-            overflow-x: visible !important;
-            overflow-y: visible !important;
-            max-height: none !important;
-        }
-        /* step0 列及其中包裹食材表格的任意祖先：禁止最大高度与滚动 */
-        #step0-ingredients,
-        #step0-ingredients div:has(#ingredient-table-html),
-        #step0-ingredients div:has(.ingredient-table-no-scroll) {
-            overflow: visible !important;
-            max-height: none !important;
-        }
-        .ingredient-table-wrap .ingredient-display-table { width: 100%; border-collapse: collapse; }
-        .ingredient-table-wrap .ingredient-display-table th,
-        .ingredient-table-wrap .ingredient-display-table td { border: 1px solid var(--border-color-primary, #e0e0e0); padding: 0.4em 0.6em; text-align: left; }
-        .ingredient-table-wrap .ingredient-display-table th { background: var(--block-background-fill-secondary, #f5f5f5); font-weight: 600; }
-        .ingredient-table-empty { color: var(--body-text-color-subdued, #666); margin: 0.5em 0; font-size: 0.95em; }
-        /* 隐藏该区域内可能出现的滚动条 */
-        #step0-ingredients ::-webkit-scrollbar { display: none !important; }
-        #ingredient-table-html ::-webkit-scrollbar { display: none !important; }
-        .ingredient-table-wrap ::-webkit-scrollbar { display: none !important; }
-        """,
+/* ═══════════════════════════════════════════════════════
+   涮涮AI v4 — 按原型设计说明书重构的 CSS
+   设计语言：火锅红橙主色 / 温暖中国食品风格 / 手机框居中
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Google Fonts 回退 ─────────────────────────────────── */
+body {
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB',
+               'Microsoft YaHei', sans-serif !important;
+  background: #bec9be !important;
+}
+
+/* ── 手机框居中 ────────────────────────────────────────── */
+.gradio-container {
+  max-width: 430px !important;
+  margin: 18px auto 40px !important;
+  border-radius: 22px !important;
+  overflow: hidden !important;
+  box-shadow: 0 12px 64px rgba(0,0,0,.28) !important;
+  background: #f7f5f2 !important;
+  padding: 0 !important;
+}
+.gradio-container > .main { padding: 0 !important; }
+.contain { padding: 0 !important; }
+footer { display: none !important; }
+
+/* ── 首页 ─────────────────────────────────────────────── */
+#page-home { background: #111; }
+.hp-wrap {
+  display: flex; flex-direction: column; align-items: stretch;
+  background: #111;
+}
+.hp-tagline {
+  background: #1e1e1e; color: #aaa;
+  text-align: center; padding: 14px 20px;
+  font-size: .85em; letter-spacing: .14em;
+  font-family: 'Noto Serif SC', 'STSong', serif;
+}
+.hp-poster {
+  position: relative; overflow: hidden;
+  min-height: 54vw; max-height: 260px;
+  background: linear-gradient(170deg,
+    #7b0000 0%, #b31a1a 22%, #d84315 44%,
+    #f4511e 62%, #ff8f00 78%, #1a0a00 100%);
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
+.hp-poster-glow {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 75% 55% at 50% 35%,
+    rgba(255,120,40,.38), transparent 72%);
+  pointer-events: none;
+}
+.hp-steam {
+  position: absolute; bottom: 28px;
+  width: 24px; height: 70px;
+  background: linear-gradient(to top, rgba(255,255,255,.28), transparent);
+  border-radius: 50%;
+  animation: steamRise 2.6s ease-in-out infinite;
+}
+.hp-steam--1 { left: 37%; animation-delay: 0s; }
+.hp-steam--2 { left: 50%; animation-delay: .8s; transform: scaleX(-1); }
+.hp-steam--3 { left: 63%; animation-delay: 1.6s; }
+@keyframes steamRise {
+  0%   { opacity: 0; transform: translateY(0) scaleX(1); }
+  30%  { opacity: .85; }
+  100% { opacity: 0; transform: translateY(-65px) scaleX(1.5); }
+}
+.hp-pot-wrap {
+  position: absolute; bottom: -24px; left: 50%;
+  transform: translateX(-50%); width: 180px; height: 70px; z-index: 2;
+}
+.hp-pot-ring {
+  width: 180px; height: 55px; border-radius: 50%;
+  border: 5px solid rgba(255,200,50,.55);
+  box-shadow: 0 0 28px rgba(255,140,40,.5);
+}
+.hp-pot-lava {
+  position: absolute; top: 8px; left: 18px;
+  width: 144px; height: 40px;
+  background: radial-gradient(ellipse,
+    rgba(255,70,20,.75) 0%, rgba(120,10,0,.8) 65%, transparent 100%);
+  border-radius: 50%;
+}
+.hp-pot-bubble {
+  position: absolute;
+  background: rgba(255,180,50,.7);
+  border-radius: 50%;
+  animation: bubble 1.4s ease-in-out infinite;
+}
+.hp-pot-bubble.b1 { width:10px;height:10px;left:30px;top:14px;animation-delay:0s; }
+.hp-pot-bubble.b2 { width: 7px;height: 7px;left:80px;top:20px;animation-delay:.5s; }
+.hp-pot-bubble.b3 { width:12px;height:12px;left:120px;top:12px;animation-delay:.9s; }
+@keyframes bubble {
+  0%,100% { transform: translateY(0) scale(1); opacity: .7; }
+  50%      { transform: translateY(-8px) scale(1.2); opacity: 1; }
+}
+.hp-poster-text {
+  position: absolute; top: 16px; left: 0; right: 0;
+  text-align: center; z-index: 3;
+}
+.hp-poster-headline {
+  font-family: 'Noto Serif SC', 'STXingKai', serif;
+  font-size: 2em; font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 14px rgba(0,0,0,.6), 0 0 40px rgba(255,120,40,.5);
+  letter-spacing: .06em;
+}
+.hp-poster-brand {
+  font-size: .88em; color: rgba(255,255,255,.75);
+  letter-spacing: .28em; margin-top: 4px;
+}
+.hp-poster-sub {
+  position: relative; z-index: 3;
+  background: rgba(0,0,0,.6); color: rgba(255,255,255,.85);
+  text-align: center; padding: 11px;
+  font-size: .88em; letter-spacing: .06em;
+}
+/* 首页「开始」按钮 */
+#btn-enter-home button {
+  width: calc(100% - 64px) !important;
+  margin: -20px auto 0 !important;
+  display: block !important;
+  background: linear-gradient(135deg, #e07c24 0%, #c0392b 100%) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 50px !important;
+  font-family: 'Noto Serif SC', serif !important;
+  font-size: 1.25em !important; font-weight: 700 !important;
+  letter-spacing: .32em !important;
+  padding: 15px 0 !important;
+  box-shadow: 0 6px 28px rgba(192,57,43,.48) !important;
+  position: relative; z-index: 10;
+  transition: transform .2s, box-shadow .2s !important;
+}
+#btn-enter-home button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 36px rgba(192,57,43,.58) !important;
+}
+.hp-bounce {
+  text-align: center; color: rgba(200,200,200,.55);
+  font-size: .88em; margin: 10px 0 4px;
+  animation: bounce 1.5s ease-in-out infinite;
+}
+@keyframes bounce {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(6px); }
+}
+
+/* ── 步骤头部横条 ──────────────────────────────────────── */
+.shuai-step-bar {
+  background: #3a3535; color: white;
+  padding: 13px 20px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Noto Sans SC', sans-serif;
+  margin-bottom: 0 !important;
+}
+.shuai-step-num {
+  font-size: .7em; color: rgba(255,255,255,.55);
+  letter-spacing: .12em;
+}
+.shuai-step-title { font-size: .97em; font-weight: 500; color: #fff; letter-spacing: .06em; }
+.shuai-step-bar--timer {
+  background: linear-gradient(90deg, #b31a1a, #d84315) !important;
+}
+
+/* ── 步骤1：食材输入 ───────────────────────────────────── */
+#page-step0 { background: #f3f0ec; }
+#ing-card-group {
+  background: white; margin: 12px; border-radius: 14px;
+  padding: 14px 14px 16px; box-shadow: 0 2px 14px rgba(0,0,0,.07);
+}
+.ing-card-title {
+  font-size: .78em; color: #e07c24; letter-spacing: .1em;
+  font-weight: 600; margin-bottom: 10px; text-transform: uppercase;
+}
+#img-rec-group {
+  background: white; margin: 0 12px 10px; border-radius: 14px;
+  padding: 0 14px 14px; box-shadow: 0 2px 14px rgba(0,0,0,.07);
+}
+.shuai-sec-sep {
+  font-size: .78em; color: #999; letter-spacing: .1em;
+  padding: 9px 12px 5px;
+}
+#batch-acc { margin: 0 12px 8px; border-radius: 12px; overflow: hidden; }
+#merchant-status { margin: 0 12px; }
+#page-step0 #btn-merchant { margin: 4px 12px 8px; width: calc(100% - 24px); }
+#page-step0 #ingredient-table-html { margin: 0 12px; }
+#delete-row { margin: 4px 12px 8px; }
+#ing-confirm-row { margin-top: 10px; gap: 10px; }
+#ing-confirm-row #btn-confirm-add { flex: 2 !important; }
+#ing-confirm-row #btn-clear-input { flex: 1 !important; }
+#time-portion-row { margin-top: 6px; }
+
+/* ── 购物车栏 ──────────────────────────────────────────── */
+.shuai-basket-area { position: sticky; bottom: 0; z-index: 50; }
+.shuai-basket-bar {
+  background: #2a2424; color: white;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; cursor: default;
+}
+.bsk-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
+.bsk-icon { font-size: 1.25em; position: relative; flex-shrink: 0; }
+.bsk-badge {
+  position: absolute; top: -5px; right: -7px;
+  background: #e07c24; color: white; border-radius: 50%;
+  font-size: .6em; width: 15px; height: 15px;
+  display: flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.bsk-preview {
+  font-size: .8em; color: rgba(255,255,255,.65);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bsk-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.bsk-count { font-size: .78em; color: rgba(255,255,255,.55); }
+.bsk-next-btn {
+  background: linear-gradient(135deg, #e07c24, #c0392b);
+  color: white; border: none; border-radius: 6px;
+  padding: 7px 14px; font-size: .88em; cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif; font-weight: 500;
+  transition: opacity .15s;
+}
+.bsk-next-btn:hover { opacity: .88; }
+/* 遮罩 & 抽屉 */
+.shuai-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.48); z-index: 200;
+}
+.shuai-drawer {
+  position: fixed; bottom: 0; left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: min(430px, 100vw); max-height: 68vh;
+  background: white; border-radius: 18px 18px 0 0;
+  z-index: 201; display: flex; flex-direction: column;
+  transition: transform .32s cubic-bezier(.32,0,.15,1);
+  box-shadow: 0 -6px 36px rgba(0,0,0,.18);
+}
+.shuai-drawer.open { transform: translateX(-50%) translateY(0); }
+.shuai-drawer-handle {
+  width: 38px; height: 4px; background: #ddd;
+  border-radius: 2px; margin: 10px auto 6px;
+}
+.shuai-drawer-header {
+  padding: 8px 20px 14px;
+  border-bottom: 1px solid #f0ece8;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.shuai-drawer-title { font-weight: 600; font-size: .97em; }
+.shuai-drawer-close {
+  background: none; border: none; font-size: 1.05em;
+  cursor: pointer; color: #aaa; padding: 4px 8px;
+}
+.shuai-drawer-body { overflow-y: auto; flex: 1; padding: 10px 20px; }
+.drawer-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid #f3efe9;
+}
+.di-name { font-weight: 500; font-size: .93em; }
+.di-meta { font-size: .8em; color: #999; }
+.drawer-empty { color: #bbb; font-size: .88em; text-align: center; padding: 24px 0; }
+.shuai-drawer-footer {
+  padding: 12px 20px; border-top: 1px solid #f0ece8;
+  display: flex; justify-content: flex-end;
+}
+.shuai-drawer-next {
+  background: linear-gradient(135deg, #e07c24, #c0392b);
+  color: white; border: none; border-radius: 24px;
+  padding: 10px 28px; font-size: .93em; cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif; font-weight: 500;
+}
+/* 隐藏 Gradio 生成的「下一步」btn_next 外壳 */
+#btn-next-hidden { position: absolute !important; opacity: 0 !important;
+  pointer-events: none !important; height: 0 !important; overflow: hidden !important; }
+
+/* ── 食材表格 ──────────────────────────────────────────── */
+.ingredient-table-wrap .ingredient-display-table { width: 100%; border-collapse: collapse; }
+.ingredient-table-wrap .ingredient-display-table th,
+.ingredient-table-wrap .ingredient-display-table td {
+  border: 1px solid #ede8e2; padding: .38em .55em; text-align: left; font-size: .88em; }
+.ingredient-table-wrap .ingredient-display-table th { background: #f7f3ee; font-weight: 600; }
+.ingredient-table-empty { color: #bbb; font-size: .88em; margin: .4em 0; }
+#ingredient-table-html { overflow: visible !important; max-height: none !important; }
+
+/* ── 步骤2：偏好选择卡片 ───────────────────────────────── */
+#page-step1 { background: #f3f0ec; }
+.pref-acc {
+  margin: 8px 12px !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.07) !important;
+  border: 1px solid #ede8e2 !important;
+}
+.pref-acc > div:first-child {
+  background: white !important;
+  font-family: 'Noto Sans SC', sans-serif !important;
+  font-size: .97em !important; color: #2a2a2a !important;
+  padding: 15px 18px !important;
+  transition: background .15s !important;
+}
+.pref-acc > div:first-child:hover { background: #fef9f4 !important; }
+.pref-acc--hero > div:first-child {
+  font-size: 1.05em !important; font-weight: 600 !important;
+  padding: 20px 20px !important;
+  background: linear-gradient(135deg, #fff 70%, #fff5ee 100%) !important;
+  border-bottom: 2px solid #f5c89a !important;
+}
+.pref-acc > div:first-child > span { font-weight: 500 !important; }
+#pref-half-row { margin: 0 4px; gap: 0; }
+#allergen-col .pref-acc,
+#people-col .pref-acc { margin: 8px 8px !important; }
+#load-pref-btn { margin: 4px 12px 0; width: calc(100% - 24px); }
+#pref_status, #result_status { margin: 2px 12px; }
+#step1-nav-row { margin: 8px 12px 16px; gap: 8px; }
+/* 选项 Radio 样式 */
+.pref-acc .gr-radio-row { padding: 4px 0; }
+
+/* ── 步骤3：方案结果 ────────────────────────────────────── */
+#page-step2 { background: #f3f0ec; }
+#plan-scroll-wrap {
+  background: white; margin: 12px; border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 2px 14px rgba(0,0,0,.07);
+  max-height: 44vh; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #e0d8d0 #f5f0ea;
+}
+#plan-scroll-wrap::-webkit-scrollbar { width: 4px; }
+#plan-scroll-wrap::-webkit-scrollbar-track { background: #f5f0ea; }
+#plan-scroll-wrap::-webkit-scrollbar-thumb { background: #d8cfc7; border-radius: 2px; }
+/* 圆形「开始吃饭」按钮 */
+.eating-btn-wrap {
+  display: flex; justify-content: center; padding: 18px 0 10px;
+}
+#btn-start-eating { display: none; } /* will be shown via next rule on the button */
+#btn-start-eating button,
+#page-step2 #btn-start-eating button {
+  width: 112px !important; height: 112px !important;
+  border-radius: 50% !important;
+  font-family: 'Noto Serif SC', serif !important;
+  font-size: 1.1em !important; font-weight: 700 !important;
+  line-height: 1.45 !important; white-space: pre-line !important;
+  background: linear-gradient(145deg, #e07c24 0%, #c0392b 100%) !important;
+  color: white !important; border: none !important;
+  box-shadow: 0 4px 22px rgba(192,57,43,.4),
+              0 0 0 7px rgba(224,124,36,.13) !important;
+  transition: transform .2s, box-shadow .2s !important;
+}
+#btn-start-eating button:hover {
+  transform: scale(1.06) !important;
+  box-shadow: 0 8px 32px rgba(192,57,43,.52),
+              0 0 0 9px rgba(224,124,36,.18) !important;
+}
+#share-row { margin: 4px 12px 0; gap: 8px; }
+#copy-status-html, #qr-display-html { margin: 2px 12px; min-height: 0; }
+#step2-nav-row { margin: 8px 12px 16px; gap: 8px; }
+
+/* ── 步骤4：计时 ────────────────────────────────────────── */
+#hotpot-timer-display {
+  margin: 10px;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+/* ── Gradio 通用覆盖 ────────────────────────────────────── */
+.block { border: none !important; box-shadow: none !important; background: transparent !important; }
+.gr-form { background: transparent !important; border: none !important; }
+.gradio-container .block.padded { padding: 6px 0 !important; }
+""",
     )
