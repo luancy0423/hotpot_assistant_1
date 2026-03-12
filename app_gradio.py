@@ -1386,11 +1386,28 @@ def _basket_bar_html(count: int, state: list) -> str:
     if(d)d.classList.remove('open');
   }}
   function grNext(){{
-    var c=document.getElementById('btn-next-hidden');
-    if(c){{var b=c.querySelector('button');if(b){{b.click();return;}}}}
-    // fallback: try by elem selector
-    var btns=document.querySelectorAll('#btn-next-hidden button');
-    if(btns.length)btns[0].click();
+    console.log('grNext called');
+    // 尝试多种方式找到按钮
+    var btn = document.getElementById('btn-next-hidden');
+    if(btn){{
+      console.log('Found btn-next-hidden');
+      var button = btn.querySelector('button');
+      if(button){{
+        console.log('Found button inside, clicking');
+        button.click();
+        return;
+      }}
+    }}
+    // 尝试直接查找所有按钮
+    var allBtns = document.querySelectorAll('button');
+    for(var i=0; i<allBtns.length; i++){{
+      if(allBtns[i].textContent.includes('下一步') || allBtns[i].id === 'btn-next-hidden'){{
+        console.log('Found next button by text/id');
+        allBtns[i].click();
+        return;
+      }}
+    }}
+    console.warn('Could not find next button');
   }}
   window.shuaiOpenBasket=openDrawer;
   window.shuaiCloseBasket=function(el){{closeDrawer();}};
@@ -1896,9 +1913,21 @@ def create_ui():
         )
 
         # 购物车栏「下一步」→ 步骤2
+        def _handle_next_click():
+            """处理下一步点击"""
+            try:
+                print("Next button clicked")
+                return _nav_next_v4(0)  # 从步骤0跳到步骤1
+            except Exception as e:
+                print(f"Error in _handle_next_click: {e}")
+                import traceback
+                traceback.print_exc()
+                return (0, gr.update(visible=True), gr.update(visible=False),
+                        gr.update(visible=False), gr.update(visible=False), gr.update(visible=False))
+        
         btn_next.click(
-            fn=_nav_next_v4,
-            inputs=[step_state],
+            fn=_handle_next_click,
+            inputs=[],
             outputs=[step_state, step_home, step0, step1, step2, step3],
         )
 
