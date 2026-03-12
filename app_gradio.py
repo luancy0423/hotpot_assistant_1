@@ -1521,7 +1521,7 @@ def create_ui():
                         ingredient_search_dd = gr.Dropdown(
                             label="🔍 搜索补全（输入后下拉选择）",
                             choices=[], value=None,
-                            allow_custom_value=False,
+                            allow_custom_value=True,
                             interactive=True,
                             elem_id="ing-search-dd",
                         )
