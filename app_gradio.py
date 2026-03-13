@@ -221,7 +221,9 @@ def generate_plan_ui(
         texture=texture_value,
         user_mode=mode_value,
         allergens_to_avoid=allergens,
-        use_llm_sort=True,
+        use_llm_sort=bool(
+            os.environ.get("HOTPOT_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        ),
         llm_api_key=None,
         custom_ingredients=custom_ingredients if custom_ingredients else None,
     )
@@ -748,7 +750,7 @@ def _generate_and_go(ingredient_table, broth_label, texture_label, mode_label, a
     if step == 2:
         plan_text = _plan_to_share_text(plan_data) if plan_data else ""
         return md, 2, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), "", plan_data, plan_text
-    return md, step, gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), md, None, ""
+    return md, step, gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), md, None, ""
 
 
 def _start_eating(plan_data):
@@ -1276,38 +1278,38 @@ def _generate_qr_html(plan_text: str) -> str:
 # ═════════════════════════════════════════════════════════════════════════════
 
 def _homepage_html() -> str:
-    """首页海报 HTML（使用 CSS 绘制火锅场景，无需外部图片）"""
+    """首页海报 HTML - 增加固定高度容器防止塌陷"""
     return """
-<div class="hp-wrap">
-  <div class="hp-tagline">三步走 · 定制你的专署火锅菜单</div>
-  <div class="hp-poster">
-    <div class="hp-poster-glow"></div>
-    <div class="hp-steam hp-steam--1"></div>
-    <div class="hp-steam hp-steam--2"></div>
-    <div class="hp-steam hp-steam--3"></div>
-    <div class="hp-poster-text">
-      <div class="hp-poster-headline">涮出无∞限可能</div>
-      <div class="hp-poster-brand">涮涮 AI</div>
+<div class="hp-main-container">
+  <div class="hp-wrap">
+    <div class="hp-poster">
+      <div class="hp-poster-glow"></div>
+      <div class="hp-poster-content">
+        <div class="hp-tagline-top">/ 三步走 /</div>
+        <div class="hp-poster-headline">涮出无∞限可能</div>
+        <div class="hp-poster-brand">涮涮 AI</div>
+        <div class="hp-tagline-bottom">定制你的专属菜单</div>
+      </div>
+      <div class="hp-steam hp-steam--1"></div>
+      <div class="hp-steam hp-steam--2"></div>
+      <div class="hp-steam hp-steam--3"></div>
+      <div class="hp-pot-base"></div>
     </div>
-    <div class="hp-pot-wrap">
-      <div class="hp-pot-ring"></div>
-      <div class="hp-pot-lava"></div>
-      <div class="hp-pot-bubble b1"></div>
-      <div class="hp-pot-bubble b2"></div>
-      <div class="hp-pot-bubble b3"></div>
-    </div>
-    <div class="hp-poster-sub">探索火锅的无限可能</div>
   </div>
 </div>
 """
 
 
 def _step_header_html(step_num: str, step_title: str, extra_cls: str = "") -> str:
-    """统一步骤头部横条"""
-    return (f'<div class="shuai-step-bar {extra_cls}">'
-            f'<span class="shuai-step-num">{step_num}</span>'
-            f'<span class="shuai-step-title">{step_title}</span>'
-            f'</div>')
+    """统一步骤头部 - 对齐原型图斜杠风格"""
+    return (
+        f'<div class="shuai-step-bar {extra_cls}">'
+        f'<div class="shuai-step-wrapper">'
+        f'<span class="shuai-step-num">/ {step_num} /</span>'
+        f'<span class="shuai-step-title">{step_title}</span>'
+        f'</div>'
+        f'</div>'
+    )
 
 
 def _basket_drawer_html(state: list) -> str:
@@ -1337,30 +1339,38 @@ def _basket_drawer_html(state: list) -> str:
 
 def _basket_bar_html(count: int, state: list) -> str:
     """
-    底部购物车栏左侧部分（仅显示 icon/预览/件数 + 上拉抽屉）。
-    「下一步」按钮改为独立的 Gradio Button，放在右侧，避免 JS .click() 无法触发 Gradio 事件的问题。
+    底部购物车栏（仿美团风格）+ 上拉抽屉。
+    点击篮子图标展开抽屉浏览已选食材；点击「下一步」触发隐藏的 Gradio 按钮。
     """
     items_list = [r[0] for r in (state or []) if r and r[0]]
     preview = "、".join(items_list[:3]) + ("…" if len(items_list) > 3 else "") if items_list else "还未添加食材"
     badge = f'<span class="bsk-badge">{count}</span>' if count > 0 else ""
     drawer_content = _basket_drawer_html(state or [])
     return f"""
-<div class="shuai-basket-left">
-  <div class="bsk-left" onclick="shuaiOpenBasket(event)">
-    <span class="bsk-icon">🛒{badge}</span>
-    <span class="bsk-preview">{preview}</span>
+<div class="shuai-basket-area">
+  <div class="shuai-basket-bar">
+    <div class="bsk-left" onclick="shuaiOpenBasket(event)">
+      <span class="bsk-icon">🛒{badge}</span>
+      <span class="bsk-preview">{preview}</span>
+    </div>
+    <div class="bsk-right">
+      <span class="bsk-count">共 {count} 件涮品</span>
+      <button class="bsk-next-btn" onclick="shuaiGrNext(event)">下一步 ›</button>
+    </div>
   </div>
-  <span class="bsk-count">共{count}件</span>
-</div>
 
-<div class="shuai-overlay" id="shuai-overlay-{count}" onclick="shuaiCloseBasket(this)" style="display:none"></div>
-<div class="shuai-drawer" id="shuai-drawer-{count}">
-  <div class="shuai-drawer-handle"></div>
-  <div class="shuai-drawer-header">
-    <span class="shuai-drawer-title">已选食材（{count}件）</span>
-    <button class="shuai-drawer-close" onclick="shuaiCloseBasket2('{count}')">✕</button>
+  <div class="shuai-overlay" id="shuai-overlay-{count}" onclick="shuaiCloseBasket(this)" style="display:none"></div>
+  <div class="shuai-drawer" id="shuai-drawer-{count}">
+    <div class="shuai-drawer-handle"></div>
+    <div class="shuai-drawer-header">
+      <span class="shuai-drawer-title">已选食材（{count}件）</span>
+      <button class="shuai-drawer-close" onclick="shuaiCloseBasket2('{count}')">✕</button>
+    </div>
+    <div class="shuai-drawer-body">{drawer_content}</div>
+    <div class="shuai-drawer-footer">
+      <button class="shuai-drawer-next" onclick="shuaiCloseBasket2('{count}'); setTimeout(shuaiGrNextRaw, 120)">下一步</button>
+    </div>
   </div>
-  <div class="shuai-drawer-body">{drawer_content}</div>
 </div>
 <script>
 (function(){{
@@ -1377,9 +1387,29 @@ def _basket_bar_html(count: int, state: list) -> str:
     if(o)o.style.display='none';
     if(d)d.classList.remove('open');
   }}
+  function fireClick(el){{
+    el.dispatchEvent(new MouseEvent('click', {{bubbles:true, cancelable:true, view:window}}));
+  }}
+  function grNext(){{
+    // 1. 首选：按 elem_id 定位 Gradio 按钮包裹层，再找内部 <button>
+    var wrapper = document.getElementById('btn-next-hidden');
+    if(wrapper){{
+      var button = wrapper.querySelector('button');
+      if(button){{ fireClick(button); return; }}
+    }}
+    // 2. 兜底：遍历全部按钮，跳过购物车区域内的按钮（避免找到自身造成无限循环）
+    var allBtns = document.querySelectorAll('button');
+    for(var i=0; i<allBtns.length; i++){{
+      var b = allBtns[i];
+      if(b.closest && b.closest('.shuai-basket-area')) continue;
+      if(b.textContent.trim() === '下一步'){{ fireClick(b); return; }}
+    }}
+  }}
   window.shuaiOpenBasket=openDrawer;
   window.shuaiCloseBasket=function(el){{closeDrawer();}};
   window.shuaiCloseBasket2=closeDrawer;
+  window.shuaiGrNext=function(e){{if(e)e.stopPropagation();grNext();}};
+  window.shuaiGrNextRaw=grNext;
 }})();
 </script>
 """
@@ -1463,6 +1493,10 @@ def create_ui():
         last_beeped_put = gr.State(-1)
         last_beeped_take = gr.State(-1)
         ingredient_table_state = gr.State([])
+        # 用于打破搜索补全的循环触发：
+        # 用户从下拉选中 → 写入名称框 → 触发名称框 change → 重新搜索（覆盖选中值）
+        # just_selected=True 时 _on_name_change 跳过搜索，只清除 flag
+        search_just_selected = gr.State(False)
 
         # ══════════════════════════════════════════════════════════════════
         # 首页（页面2）
@@ -1566,33 +1600,23 @@ def create_ui():
                 )
                 btn_del_selected = gr.Button("删除所选行", variant="secondary", scale=1)
 
-            # ── 底部购物车栏 + 真实「下一步」Gradio 按钮 ──────────
-            # ⚠️ 设计要点：「下一步」必须是真正的 Gradio Button（visible=True），
-            # 不能用 JS .click() 触发隐藏按钮——Gradio 的 Svelte 事件系统在
-            # display:none 元素上不会触发 Python 回调。
-            # 两者放在同一个 Row，CSS 让它们外观融合成一体的底部导航栏。
-            with gr.Row(elem_id="basket-footer-row", equal_height=True):
-                basket_bar_html = gr.HTML(
-                    value=_basket_bar_html(0, []),
-                    elem_id="basket-bar-html",
-                    scale=3,
-                )
-                btn_next = gr.Button(
-                    "下一步 ›",
-                    variant="primary",
-                    elem_id="btn-next-real",
-                    scale=1,
-                )
+            # ── 底部购物车栏（仿美团，含上拉抽屉）────────────────────
+            basket_bar_html = gr.HTML(
+                value=_basket_bar_html(0, []),
+                elem_id="basket-bar-html",
+            )
+            # 隐藏的「下一步」Gradio 按钮，由篮子栏中的 JS 触发（通过 CSS 隐藏）
+            btn_next = gr.Button("下一步", elem_id="btn-next-hidden", visible=True)
 
         # ══════════════════════════════════════════════════════════════════
         # 步骤2（页面4）：锅底与偏好
         # ══════════════════════════════════════════════════════════════════
         step1 = gr.Column(visible=False, elem_id="page-step1")
         with step1:
-            gr.HTML(_step_header_html("第二步", "选择锅底 & 偏好"))
+            gr.HTML(_step_header_html("第二步", "选择你的口味"))
 
             # ── 大卡片：锅底 ─────────────────────────────────────────
-            # open=True 确保首次进入时内容可见，避免全折叠白屏
+            # open=True：进入偏好页时内容立即可见，避免全折叠产生白屏
             broth_acc = gr.Accordion(
                 "🍲 锅底类型", open=True, elem_classes=["pref-acc", "pref-acc--hero"],
                 elem_id="broth-acc",
@@ -1625,7 +1649,7 @@ def create_ui():
                     elem_classes=["pref-radio"],
                 )
 
-            # ── 下排两个半宽卡片（折叠即可，非核心）──────────────────
+            # ── 下排两个半宽卡片（次要，折叠即可）───────────────────
             with gr.Row(elem_id="pref-half-row"):
                 with gr.Column(elem_id="allergen-col"):
                     allergen_acc = gr.Accordion(
@@ -1651,7 +1675,7 @@ def create_ui():
 
             with gr.Row(elem_id="step1-nav-row"):
                 btn_prev = gr.Button("← 上一步", elem_id="btn-prev-s1")
-                btn_generate = gr.Button("⚡ 生成涮煮方案", variant="primary", elem_id="btn-generate")
+                btn_generate = gr.Button("⚡ 生成方案", variant="primary", elem_id="btn-generate")
 
         # ══════════════════════════════════════════════════════════════════
         # 步骤3（页面5）：方案结果
@@ -1707,24 +1731,29 @@ def create_ui():
         )
 
         # ── 步骤1：食材输入 ───────────────────────────────────────────────
-        def _on_name_change(name_val):
-            """输入食材名称时：更新搜索下拉 + 更新提示"""
+        def _on_name_change(name_val, just_sel):
+            """
+            输入食材名称时：更新搜索下拉 + 更新提示。
+            若 just_sel=True，说明本次 change 是由「从下拉选中」触发的，
+            跳过搜索（避免循环覆盖选中值），只清 flag。
+            """
             try:
-                # 搜索建议
+                if just_sel:
+                    # 本次是从下拉选中触发的，不重新搜索，只清 flag
+                    return gr.update(), gr.update(), False
                 choices = _search_ingredients_for_dropdown(name_val)
-                # 提示信息
                 hint = _ingredient_lookup_hint(name_val, None)
-                return gr.update(choices=choices, value=None), hint
+                return gr.update(choices=choices, value=None), hint, False
             except Exception as e:
                 print(f"Error in _on_name_change: {e}")
-                return gr.update(choices=[], value=None), ""
-        
+                return gr.update(choices=[], value=None), "", False
+
         ingredient_name_input.change(
             fn=_on_name_change,
-            inputs=[ingredient_name_input],
-            outputs=[ingredient_search_dd, ingredient_default_hint],
+            inputs=[ingredient_name_input, search_just_selected],
+            outputs=[ingredient_search_dd, ingredient_default_hint, search_just_selected],
         )
-        
+
         def _on_time_change(name_val, time_val):
             """涮煮时间变化时更新提示"""
             try:
@@ -1733,26 +1762,32 @@ def create_ui():
             except Exception as e:
                 print(f"Error in _on_time_change: {e}")
                 return ""
-        
+
         ingredient_time_input.change(
             fn=_on_time_change,
             inputs=[ingredient_name_input, ingredient_time_input],
             outputs=[ingredient_default_hint],
         )
-        
+
         def _on_search_select(v):
-            """当用户从下拉框选择时，将选中的值填入名称框"""
+            """
+            用户从下拉框点选一项时：
+            1. 把选中值写入名称框
+            2. 清空下拉框（避免残留选中值触发再次 change）
+            3. 设 just_selected=True，让随后触发的 ingredient_name_input.change 跳过搜索
+            """
             try:
                 if v and str(v).strip():
-                    return str(v).strip()
-                return ""
+                    return str(v).strip(), gr.update(choices=[], value=None), True
+                return gr.update(), gr.update(choices=[], value=None), False
             except Exception as e:
                 print(f"Error in _on_search_select: {e}")
-                return ""
-        
+                return gr.update(), gr.update(), False
+
         ingredient_search_dd.change(
             fn=_on_search_select,
-            inputs=[ingredient_search_dd], outputs=[ingredient_name_input],
+            inputs=[ingredient_search_dd],
+            outputs=[ingredient_name_input, ingredient_search_dd, search_just_selected],
         )
 
         def _add_v4(name, t, p, state):
@@ -1912,7 +1947,7 @@ def create_ui():
         )
 
         # ── 步骤2：锅底与偏好 ─────────────────────────────────────────────
-        # Accordion 标签随选择实时更新（显示当前选中值）
+        # Accordion 折叠后在标题显示当前选中值
         broth_dd.change(
             fn=lambda v: gr.update(label=f"🍲 锅底类型　✓ {v}"),
             inputs=[broth_dd], outputs=[broth_acc],
@@ -2014,7 +2049,8 @@ if __name__ == "__main__":
     demo.launch(
         server_name="0.0.0.0",
         server_port=7860,
-        share=os.environ.get("HOTPOT_GRADIO_SHARE", "").strip() in ("1", "true", "yes"),
+        # 默认开启 Gradio 公网分享链接；如需关闭，可改为 False 或继续使用环境变量控制
+        share=True,
         theme=gr.themes.Soft(primary_hue="orange"),
         css="""
 /* ═══════════════════════════════════════════════════════
@@ -2029,17 +2065,31 @@ body {
   background: #bec9be !important;
 }
 
-/* ── 手机框居中 ────────────────────────────────────────── */
+/* ── 手机框容器：固定大小且开启内部滚动 ── */
 .gradio-container {
-  max-width: 430px !important;
-  margin: 18px auto 40px !important;
-  border-radius: 22px !important;
-  overflow: hidden !important;
-  box-shadow: 0 12px 64px rgba(0,0,0,.28) !important;
+  width: 390px !important;
+  height: 844px !important;
+  max-width: 390px !important;
+  max-height: 844px !important;
+  margin: 20px auto !important;
+  border: 10px solid #333 !important; /* 模拟手机黑边 */
+  border-radius: 45px !important;
+  overflow: hidden !important; /* 外壳不滚动 */
   background: #f7f5f2 !important;
-  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
 }
-.gradio-container > .main { padding: 0 !important; }
+
+/* 核心修复：让 Gradio 内部的主主体区域可以纵向滚动 */
+.gradio-container > .main {
+  flex: 1 !important;
+  overflow-y: auto !important; /* 开启内部滚动 */
+  height: 100% !important;
+  padding-bottom: 80px !important; /* 为底部按钮留出空间 */
+}
+
+/* 隐藏所有多余的 Gradio 默认间距和底部标识 */
 .contain { padding: 0 !important; }
 footer { display: none !important; }
 
@@ -2056,12 +2106,52 @@ footer { display: none !important; }
   font-family: 'Noto Serif SC', 'STSong', serif;
 }
 .hp-poster {
-  position: relative; overflow: hidden;
-  min-height: 54vw; max-height: 260px;
-  background: linear-gradient(170deg,
-    #7b0000 0%, #b31a1a 22%, #d84315 44%,
-    #f4511e 62%, #ff8f00 78%, #1a0a00 100%);
-  display: flex; flex-direction: column; justify-content: flex-end;
+  position: relative;
+  overflow: hidden;
+  /* 修复方案：直接设置固定高度，确保绝对定位的子元素有展示空间 */
+  height: 380px !important;
+  background: linear-gradient(170deg, #7b0000 0%, #b31a1a 22%, #d84315 44%, #f4511e 62%, #ff8f00 78%, #1a0a00 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.hp-poster-content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  color: white;
+}
+
+.hp-tagline-top {
+  font-size: 1em;
+  letter-spacing: 0.3em;
+  margin-bottom: 10px;
+  opacity: 0.9;
+}
+
+.hp-poster-headline {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 2.4em;
+  font-weight: 900;
+  text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  margin-bottom: 5px;
+}
+
+.hp-poster-brand {
+  font-size: 1.1em;
+  letter-spacing: 0.5em;
+  margin-bottom: 20px;
+  opacity: 0.8;
+}
+
+.hp-tagline-bottom {
+  font-size: 0.9em;
+  background: rgba(0,0,0,0.3);
+  padding: 5px 15px;
+  border-radius: 20px;
+  display: inline-block;
 }
 .hp-poster-glow {
   position: absolute; inset: 0;
@@ -2136,24 +2226,54 @@ footer { display: none !important; }
 }
 /* 首页「开始」按钮 */
 #btn-enter-home button {
-  width: calc(100% - 64px) !important;
-  margin: -20px auto 0 !important;
-  display: block !important;
+  height: 60px !important;
+  border-radius: 30px !important;
+  font-size: 1.3em !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2em !important;
   background: linear-gradient(135deg, #e07c24 0%, #c0392b 100%) !important;
-  color: #fff !important;
   border: none !important;
-  border-radius: 50px !important;
-  font-family: 'Noto Serif SC', serif !important;
-  font-size: 1.25em !important; font-weight: 700 !important;
-  letter-spacing: .32em !important;
-  padding: 15px 0 !important;
-  box-shadow: 0 6px 28px rgba(192,57,43,.48) !important;
-  position: relative; z-index: 10;
-  transition: transform .2s, box-shadow .2s !important;
+  box-shadow: 0 10px 30px rgba(192,57,43,0.5) !important;
 }
-#btn-enter-home button:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 10px 36px rgba(192,57,43,.58) !important;
+
+/* 隐藏通过 JS 触发的隐形“下一步”按钮外壳 */
+#btn-next-hidden {
+  position: fixed !important;
+  top: -9999px !important; left: -9999px !important;
+  width: 1px !important; height: 36px !important;
+  opacity: 0 !important; pointer-events: none !important;
+  z-index: -999 !important; margin: 0 !important;
+}
+
+/* ── 锅底选择：强制 2 列瓦片网格 ── */
+#broth-radio .wrap {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important; /* 强制两列 */
+  gap: 12px !important;
+  padding: 10px !important;
+}
+
+#broth-radio label {
+  height: 90px !important; /* 变成方块 */
+  background: white !important;
+  border: 2px solid #eee !important;
+  border-radius: 15px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important;
+}
+
+/* 选中后的视觉反馈 */
+#broth-radio label:has(input:checked) {
+  border-color: #e65c00 !important;
+  background: #fff8f0 !important;
+}
+
+/* 隐藏原生的单选小圆点 */
+#broth-radio input[type="radio"] {
+  display: none !important;
 }
 .hp-bounce {
   text-align: center; color: rgba(200,200,200,.55);
@@ -2167,26 +2287,41 @@ footer { display: none !important; }
 
 /* ── 步骤头部横条 ──────────────────────────────────────── */
 .shuai-step-bar {
-  background: #3a3535; color: white;
-  padding: 13px 20px;
-  display: flex; align-items: center; gap: 10px;
-  font-family: 'Noto Sans SC', sans-serif;
-  margin-bottom: 0 !important;
+  background: transparent !important;
+  color: #333 !important;
+  text-align: center;
+  padding: 20px 0 !important;
+  display: block !important;
+}
+.shuai-step-wrapper {
+  display: inline-block;
 }
 .shuai-step-num {
-  font-size: .7em; color: rgba(255,255,255,.55);
-  letter-spacing: .12em;
+  display: block;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.2em;
+  color: #e65c00;
+  margin-bottom: 5px;
+  letter-spacing: .15em;
 }
-.shuai-step-title { font-size: .97em; font-weight: 500; color: #fff; letter-spacing: .06em; }
+.shuai-step-title {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: #1a1a1a;
+}
 .shuai-step-bar--timer {
-  background: linear-gradient(90deg, #b31a1a, #d84315) !important;
+  background: transparent !important;
 }
 
 /* ── 步骤1：食材输入 ───────────────────────────────────── */
 #page-step0 { background: #f3f0ec; }
 #ing-card-group {
-  background: white; margin: 12px; border-radius: 14px;
-  padding: 14px 14px 16px; box-shadow: 0 2px 14px rgba(0,0,0,.07);
+  background: white;
+  margin: 12px;
+  border-radius: 20px !important;
+  padding: 20px !important;
+  box-shadow: 0 2px 14px rgba(0,0,0,.07);
+  border: 2px solid #eee !important;
 }
 .ing-card-title {
   font-size: .78em; color: #e07c24; letter-spacing: .1em;
@@ -2210,24 +2345,15 @@ footer { display: none !important; }
 #ing-confirm-row #btn-clear-input { flex: 1 !important; }
 #time-portion-row { margin-top: 6px; }
 
-/* ── 购物车底部导航行 ───────────────────────────────────── */
-/* basket-footer-row：将 HTML 左侧 + Gradio Button 右侧融合为一体的深色导航栏 */
-#basket-footer-row {
-  position: sticky !important; bottom: 0 !important; z-index: 50 !important;
-  background: #2a2424 !important;
-  gap: 0 !important; padding: 0 !important; margin-top: 8px !important;
-  border-radius: 10px 10px 0 0 !important;
-  overflow: hidden !important;
-  align-items: stretch !important;
-}
-/* 左侧 HTML 区（图标+预览+件数） */
-#basket-bar-html { background: #2a2424; }
-.shuai-basket-left {
-  display: flex; align-items: center; gap: 10px;
-  padding: 11px 12px; height: 100%;
+/* ── 购物车栏 ──────────────────────────────────────────── */
+.shuai-basket-area { position: sticky; bottom: 0; z-index: 50; }
+.shuai-basket-bar {
+  background: #2a2424; color: white;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; cursor: default;
 }
 .bsk-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
-.bsk-icon { font-size: 1.25em; position: relative; flex-shrink: 0; color: white; }
+.bsk-icon { font-size: 1.25em; position: relative; flex-shrink: 0; }
 .bsk-badge {
   position: absolute; top: -5px; right: -7px;
   background: #e07c24; color: white; border-radius: 50%;
@@ -2236,26 +2362,25 @@ footer { display: none !important; }
 }
 .bsk-preview {
   font-size: .8em; color: rgba(255,255,255,.65);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.bsk-count { font-size: .78em; color: rgba(255,255,255,.55); flex-shrink: 0; padding-right: 8px; }
-/* 右侧真实 Gradio「下一步」按钮 */
-#btn-next-real {
-  flex-shrink: 0 !important; padding: 0 !important;
-  background: transparent !important;
-  border: none !important; box-shadow: none !important;
+.bsk-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.bsk-count {
+  font-size: 1em !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+  background: rgba(255,255,255,0.1);
+  padding: 4px 12px;
+  border-radius: 20px;
 }
-#btn-next-real button {
-  background: linear-gradient(135deg, #e07c24, #c0392b) !important;
-  color: white !important; border: none !important; border-radius: 0 !important;
-  padding: 0 20px !important; font-size: .9em !important; font-weight: 600 !important;
-  height: 100% !important; min-height: 46px !important;
-  cursor: pointer !important; white-space: nowrap !important;
-  font-family: 'Noto Sans SC', sans-serif !important;
-  transition: opacity .15s !important;
-  letter-spacing: .03em !important;
+.bsk-next-btn {
+  background: linear-gradient(135deg, #e07c24, #c0392b);
+  color: white; border: none; border-radius: 6px;
+  padding: 7px 14px; font-size: .88em; cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif; font-weight: 500;
+  transition: opacity .15s;
 }
-#btn-next-real button:hover { opacity: .88 !important; }
+.bsk-next-btn:hover { opacity: .88; }
 /* 遮罩 & 抽屉 */
 .shuai-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.48); z-index: 200;
@@ -2291,6 +2416,24 @@ footer { display: none !important; }
 }
 .di-name { font-weight: 500; font-size: .93em; }
 .di-meta { font-size: .8em; color: #999; }
+.drawer-empty { color: #bbb; font-size: .88em; text-align: center; padding: 24px 0; }
+.shuai-drawer-footer {
+  padding: 12px 20px; border-top: 1px solid #f0ece8;
+  display: flex; justify-content: flex-end;
+}
+.shuai-drawer-next {
+  background: linear-gradient(135deg, #e07c24, #c0392b);
+  color: white; border: none; border-radius: 24px;
+  padding: 10px 28px; font-size: .93em; cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif; font-weight: 500;
+}
+/* 隐藏 Gradio 生成的「下一步」btn_next 外壳 */
+#btn-next-hidden {
+  position: fixed !important;
+  top: -9999px !important; left: -9999px !important;
+  width: 1px !important; height: 36px !important;
+  opacity: 0 !important; pointer-events: none !important;
+  z-index: -999 !important; overflow: hidden !important; }
 
 /* ── 食材表格 ──────────────────────────────────────────── */
 .ingredient-table-wrap .ingredient-display-table { width: 100%; border-collapse: collapse; }
@@ -2303,8 +2446,6 @@ footer { display: none !important; }
 
 /* ── 步骤2：偏好选择卡片 ───────────────────────────────── */
 #page-step1 { background: #f3f0ec; min-height: 60vh; }
-
-/* Accordion 卡片外观 */
 .pref-acc {
   margin: 8px 12px !important;
   border-radius: 12px !important;
@@ -2314,37 +2455,43 @@ footer { display: none !important; }
   background: white !important;
 }
 .pref-acc--hero { border-color: #f5c89a !important; }
-
-/* Radio 胶囊按钮样式 */
+.pref-acc > div:first-child {
+  background: white !important;
+  font-family: 'Noto Sans SC', sans-serif !important;
+  font-size: .97em !important; color: #2a2a2a !important;
+  padding: 14px 18px !important;
+  transition: background .15s !important;
+}
+.pref-acc > div:first-child:hover { background: #fef9f4 !important; }
+.pref-acc--hero > div:first-child {
+  font-size: 1.05em !important; font-weight: 600 !important;
+  background: linear-gradient(135deg, #fff 70%, #fff5ee 100%) !important;
+  border-bottom: 2px solid #f5c89a !important;
+}
+/* Radio 胶囊按钮 */
+.pref-radio .wrap { display: flex !important; flex-wrap: wrap !important;
+  padding: 10px 12px 14px !important; gap: 6px !important; }
 .pref-radio label {
   border: 1.5px solid #e8e0d8 !important;
   border-radius: 20px !important;
   padding: 6px 16px !important;
-  margin: 4px !important;
   cursor: pointer !important;
-  font-size: .9em !important;
+  font-size: .88em !important;
   background: #faf8f5 !important;
   color: #3a3535 !important;
-  display: inline-flex !important;
+  display: inline-flex !important; align-items: center !important;
   transition: all .15s !important;
+  user-select: none !important;
 }
-.pref-radio label:hover {
-  border-color: #e07c24 !important;
-  background: #fff8f0 !important;
-}
+.pref-radio label:hover { border-color: #e07c24 !important; background: #fff8f0 !important; }
 .pref-radio label:has(input:checked) {
   background: linear-gradient(135deg, #e07c24, #c0392b) !important;
   border-color: transparent !important;
-  color: white !important;
-  font-weight: 600 !important;
+  color: white !important; font-weight: 600 !important;
 }
 .pref-radio input[type=radio] { display: none !important; }
-.pref-radio .wrap { display: flex !important; flex-wrap: wrap !important;
-  padding: 8px 10px 12px !important; gap: 4px !important; }
-
 #pref-half-row { margin: 0 4px; gap: 0; }
-#allergen-col .pref-acc,
-#people-col .pref-acc { margin: 8px 8px !important; }
+#allergen-col .pref-acc, #people-col .pref-acc { margin: 8px 8px !important; }
 #load-pref-btn { margin: 4px 12px 0; width: calc(100% - 24px); }
 #pref_status, #result_status { margin: 2px 12px; }
 #step1-nav-row { margin: 8px 12px 16px; gap: 8px; }

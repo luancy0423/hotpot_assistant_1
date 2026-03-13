@@ -305,30 +305,34 @@ class CookingPlanGenerator:
         user_preferences: dict = None,
     ) -> List[CookingItem]:
         """
-        下锅顺序由大模型生成，不再使用规则排序兜底。
+        下锅顺序：优先大模型排序，无 API Key 或大模型调用失败时自动回退规则排序兜底。
         """
         import os
-        from services.llm_service import sort_cooking_order_by_llm
         key = (llm_api_key or os.environ.get("HOTPOT_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY") or "").strip()
-        if not key:
-            raise ValueError(
-                "未配置大模型 API Key。请在项目根目录（与 app.py 同级）创建 .env 文件，内容：\n"
-                "HOTPOT_LLM_API_KEY=你的key\n"
-                "HOTPOT_LLM_BASE_URL=https://api.siliconflow.cn/v1\n"
-                "或设置环境变量 HOTPOT_LLM_API_KEY、OPENAI_API_KEY"
+
+        # 未请求大模型排序，或未配置 API Key → 直接使用规则兜底
+        if not use_llm_sort or not key:
+            return self._sort_by_priority(cooking_items)
+
+        # 尝试大模型排序
+        try:
+            from services.llm_service import sort_cooking_order_by_llm
+            ordered = sort_cooking_order_by_llm(
+                cooking_items,
+                broth_type=broth_type.value,
+                user_mode=user_mode.value,
+                api_key=key,
+                base_url=llm_base_url,
+                model=llm_model,
+                user_preferences=user_preferences or {},
             )
-        ordered = sort_cooking_order_by_llm(
-            cooking_items,
-            broth_type=broth_type.value,
-            user_mode=user_mode.value,
-            api_key=key,
-            base_url=llm_base_url,
-            model=llm_model,
-            user_preferences=user_preferences or {},
-        )
-        if not ordered:
-            raise ValueError("大模型排序失败，请检查网络或模型配置")
-        return ordered
+            if ordered:
+                return ordered
+        except Exception:
+            pass  # 大模型排序失败，回退规则排序
+
+        # 大模型排序失败兜底
+        return self._sort_by_priority(cooking_items)
     
     def _sort_by_priority(self, items: List[CookingItem]) -> List[CookingItem]:
         """
