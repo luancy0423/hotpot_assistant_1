@@ -9,14 +9,14 @@ import gradio as gr
 
 from config import BROTH_CHOICES, TEXTURE_CHOICES, MODE_CHOICES
 from frontend.components import (
-    homepage_html, step_header_html,
+    homepage_html, homepage_action_card_html, step_header_html,
     basket_bar_html, boiling_result_html,
     ingredient_table_html, ingredient_delete_choices,
     add_ingredient_row, delete_selected_ingredient_row,
     copy_plan_html, generate_qr_html,
 )
 from frontend.parsers import (
-    ingredient_lookup_hint, search_ingredients_for_dropdown, batch_add_ingredients,
+    ingredient_lookup_hint, search_ingredients_for_dropdown,
 )
 from frontend.nav import (
     nav_next_v4, nav_prev_v4, nav_restart_v4, nav_back_timer_v4,
@@ -32,101 +32,134 @@ from frontend.timer import timer_tick
 # ── 样式表 ───────────────────────────────────────────────────────
 _CSS = """
 /* ═══════════════════════════════════════════════════════
-   涮涮AI v4 CSS  —  火锅红橙主色 / 手机框居中
+   涮涮AI v4 CSS  —  火锅红主色 / 手机框居中 / 弹性滚动
    ═══════════════════════════════════════════════════════ */
 
+/* ── 网页最外层背景（深暗红） ── */
 body {
   font-family: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB',
                'Microsoft YaHei', sans-serif !important;
-  background: #bec9be !important;
+  background: #2b0505 !important;
 }
 
-/* ── 手机框容器 ── */
+/* ── 主容器 450×954 ── */
 .gradio-container {
-  width: 390px !important; height: 844px !important;
-  max-width: 390px !important; max-height: 844px !important;
-  margin: 20px auto !important;
-  border: 10px solid #333 !important;
-  border-radius: 45px !important;
-  overflow: hidden !important;
-  background: #f7f5f2 !important;
+  width: 450px !important;
+  max-width: 100% !important;
+  min-height: 954px !important;
+  height: 954px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  padding-bottom: 80px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  overflow: auto !important;
+  background: #a31515 !important;
   display: flex !important; flex-direction: column !important;
   position: relative !important;
+  box-sizing: border-box !important;
 }
+
+@media (min-width: 500px) {
+  .gradio-container {
+      margin: 20px auto !important;
+      border: 10px solid #111 !important;
+      border-radius: 40px !important;
+  }
+}
+
 .gradio-container > .main {
-  flex: 1 !important; overflow-y: auto !important;
-  height: 100% !important; padding-bottom: 80px !important;
+  flex: 1 !important;
 }
 .contain { padding: 0 !important; }
 footer  { display: none !important; }
 
-/* ── 首页 ── */
-#page-home { background: #111; }
-.hp-wrap { display: flex; flex-direction: column; align-items: stretch; background: #111; }
+/* ── 各个页面容器设为透明，透出红色底 ── */
+#page-home, #page-step0, #page-step1, #page-step2, #page-step3 {
+  background: transparent !important;
+}
+
+/* ── 步骤头部「第X步」颜色底框 ── */
+.shuai-step-bar {
+  background: linear-gradient(135deg, rgba(139,0,0,.75) 0%, rgba(163,21,21,.85) 50%, rgba(192,57,43,.7) 100%) !important;
+  text-align: center !important;
+  padding: 16px 20px !important;
+  display: block !important;
+  margin: 0 12px 16px !important;
+  border-radius: 16px !important;
+  border: 2px solid rgba(255,218,117,.45) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,.25) !important;
+}
+.shuai-step-bar--timer {
+  background: linear-gradient(135deg, rgba(44,62,80,.85) 0%, rgba(52,73,94,.9) 100%) !important;
+  border-color: rgba(255,255,255,.2) !important;
+}
+.shuai-step-wrapper { display: inline-block; }
+.shuai-step-num   { display: block; font-family: 'Noto Serif SC', serif; font-size: 1.2em; color: #ffda75 !important; margin-bottom: 5px; letter-spacing: .15em; }
+.shuai-step-title { font-size: 1.5em; font-weight: 700; color: #ffffff !important; }
+.shuai-sec-sep { font-size: .85em; color: #ffda75 !important; letter-spacing: .1em; padding: 9px 12px 5px; font-weight: bold; }
+
+/* ── 首页海报（比例 99:140，仅图片无文字）── */
+.hp-wrap { display: flex; flex-direction: column; align-items: stretch; }
 .hp-poster {
-  position: relative; overflow: hidden; height: 380px !important;
-  background: linear-gradient(170deg, #7b0000 0%, #b31a1a 22%, #d84315 44%, #f4511e 62%, #ff8f00 78%, #1a0a00 100%);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; width: 100% !important;
+  aspect-ratio: 99 / 140 !important;
+  border-radius: 0 0 20px 20px;
+  background: #2b0505;
 }
-.hp-poster-content { position: relative; z-index: 10; text-align: center; color: white; }
-.hp-tagline-top    { font-size: 1em; letter-spacing: .3em; margin-bottom: 10px; opacity: .9; }
-.hp-poster-headline {
-  font-family: 'Noto Serif SC', serif; font-size: 2.4em; font-weight: 900;
-  text-shadow: 0 4px 15px rgba(0,0,0,.5); margin-bottom: 5px;
+.hp-poster-cover {
+  position: absolute !important; inset: 0 !important; z-index: 0;
+  background-size: cover !important; background-position: center !important;
+  background-repeat: no-repeat !important;
 }
-.hp-poster-brand   { font-size: 1.1em; letter-spacing: .5em; margin-bottom: 20px; opacity: .8; }
-.hp-tagline-bottom {
-  font-size: .9em; background: rgba(0,0,0,.3);
-  padding: 5px 15px; border-radius: 20px; display: inline-block;
+.hp-poster-overlay {
+  position: absolute !important; inset: 0 !important; z-index: 1;
+  pointer-events: none !important;
 }
-.hp-poster-glow {
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 75% 55% at 50% 35%, rgba(255,120,40,.38), transparent 72%);
-  pointer-events: none;
+/* ── 首页下方行动卡片（浅色块 + 开始定制按钮）── */
+#hp-action-block {
+  background: #faf7f2 !important;
+  border-radius: 20px !important;
+  padding: 20px 24px 18px !important;
+  margin: 16px 12px 12px !important;
+  border: 1px solid #e8e0d8 !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.08) !important;
 }
-.hp-steam {
-  position: absolute; bottom: 28px; width: 24px; height: 70px;
-  background: linear-gradient(to top, rgba(255,255,255,.28), transparent);
-  border-radius: 50%; animation: steamRise 2.6s ease-in-out infinite;
+.hp-action-card { margin-bottom: 14px !important; }
+.hp-action-line {
+  font-size: .95em !important; color: #2a2a2a !important;
+  letter-spacing: .12em !important; text-align: center !important;
+  padding-bottom: 8px !important; border-bottom: 1px solid #e8e0d8 !important;
+  margin-bottom: 8px !important;
 }
-.hp-steam--1 { left: 37%; animation-delay: 0s; }
-.hp-steam--2 { left: 50%; animation-delay: .8s; transform: scaleX(-1); }
-.hp-steam--3 { left: 63%; animation-delay: 1.6s; }
-@keyframes steamRise {
-  0%   { opacity: 0; transform: translateY(0) scaleX(1); }
-  30%  { opacity: .85; }
-  100% { opacity: 0; transform: translateY(-65px) scaleX(1.5); }
+.hp-action-sub {
+  font-size: .9em !important; color: #555 !important;
+  text-align: center !important;
 }
 #btn-enter-home button {
-  height: 60px !important; border-radius: 30px !important;
-  font-size: 1.3em !important; font-weight: 700 !important; letter-spacing: .2em !important;
-  background: linear-gradient(135deg, #e07c24 0%, #c0392b 100%) !important;
-  border: none !important; box-shadow: 0 10px 30px rgba(192,57,43,.5) !important;
+  height: 52px !important; border-radius: 26px !important;
+  font-size: 1.1em !important; font-weight: 600 !important; letter-spacing: .15em !important;
+  background: #faf7f2 !important; color: #1a1a1a !important;
+  border: 2px solid #1a1a1a !important; box-shadow: none !important;
+  width: 100% !important;
+}
+#btn-enter-home button:hover {
+  background: #f0ebe3 !important; border-color: #1a1a1a !important;
 }
 .hp-bounce {
-  text-align: center; color: rgba(200,200,200,.55);
-  font-size: .88em; margin: 10px 0 4px;
+  text-align: center; color: rgba(255,255,255,.6);
+  font-size: .88em; margin: 8px 0 4px;
   animation: bounce 1.5s ease-in-out infinite;
 }
 @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
 
-/* ── 步骤头部 ── */
-.shuai-step-bar { background: transparent !important; color: #333 !important; text-align: center; padding: 20px 0 !important; display: block !important; }
-.shuai-step-wrapper { display: inline-block; }
-.shuai-step-num   { display: block; font-family: 'Noto Serif SC', serif; font-size: 1.2em; color: #e65c00; margin-bottom: 5px; letter-spacing: .15em; }
-.shuai-step-title { font-size: 1.5em; font-weight: 700; color: #1a1a1a; }
-.shuai-step-bar--timer { background: transparent !important; }
-
 /* ── 步骤1：食材输入 ── */
-#page-step0 { background: #f3f0ec; }
-#ing-card-group { background: white; margin: 12px; border-radius: 20px !important; padding: 20px !important; box-shadow: 0 2px 14px rgba(0,0,0,.07); border: 2px solid #eee !important; }
+#ing-card-group { background: white; margin: 12px; border-radius: 20px !important; padding: 20px !important; box-shadow: 0 4px 14px rgba(0,0,0,.2); border: none !important; }
 .ing-card-title { font-size: .78em; color: #e07c24; letter-spacing: .1em; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; }
-#img-rec-group { background: white; margin: 0 12px 10px; border-radius: 14px; padding: 0 14px 14px; box-shadow: 0 2px 14px rgba(0,0,0,.07); }
-.shuai-sec-sep { font-size: .78em; color: #999; letter-spacing: .1em; padding: 9px 12px 5px; }
-#batch-acc { margin: 0 12px 8px; border-radius: 12px; overflow: hidden; }
-#merchant-status { margin: 0 12px; }
+#img-rec-group { background: white; margin: 0 12px 10px; border-radius: 14px; padding: 0 14px 14px; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+#merchant-status { margin: 0 12px; color: white; }
 #page-step0 #btn-merchant { margin: 4px 12px 8px; width: calc(100% - 24px); }
-#page-step0 #ingredient-table-html { margin: 0 12px; }
+#page-step0 #ingredient-table-html { margin: 0 12px; background: white; border-radius: 10px; padding: 5px; }
 #delete-row      { margin: 4px 12px 8px; }
 #step0-next-row  { margin: 16px 12px 8px; justify-content: flex-end; }
 #step0-next-row button { min-width: 120px; }
@@ -134,13 +167,19 @@ footer  { display: none !important; }
 #ing-confirm-row #btn-confirm-add { flex: 2 !important; }
 #ing-confirm-row #btn-clear-input { flex: 1 !important; }
 #time-portion-row { margin-top: 6px; }
+#ing-voice-img-row { margin-top: 12px; gap: 12px !important; }
+#ing-voice-col .wrap, #ing-img-col .wrap { min-height: 0 !important; }
+#ing-voice-col audio, #ing-voice-col [class*="audio"], #ing-img-col .image-container { max-height: 72px !important; }
+#ing-voice-col label, #ing-img-col label { font-size: .85em !important; }
+#btn-voice-rec, #btn-image-rec { font-size: .8em !important; padding: 6px 10px !important; }
 
-/* ── 购物车栏 ── */
-#basket-bar-row { background: #2a2424 !important; display: flex !important; align-items: center; justify-content: space-between; padding: 11px 16px; margin: 0; position: sticky; bottom: 0; z-index: 50; }
+/* ── 购物车栏悬浮 ── */
+#basket-bar-row { background: #2a2424 !important; display: flex !important; align-items: center; justify-content: space-between; padding: 11px 16px; margin: 0; position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 450px; max-width: 100%; z-index: 50; box-sizing: border-box; }
+#basket-bar-row > div:first-child { flex: 1 !important; min-width: 0 !important; }
 #basket-bar-row .shuai-basket-bar { background: transparent !important; padding: 0; flex: 1; min-width: 0; }
 #basket-bar-row #btn-next-in-bar button,
 #basket-bar-row [id^="btn-next-in-bar"] button { background: linear-gradient(135deg, #e07c24, #c0392b) !important; color: white !important; border: none; border-radius: 6px; padding: 7px 14px; font-size: .88em; }
-.shuai-basket-area { position: sticky; bottom: 0; z-index: 50; }
+.shuai-basket-area { width: 100%; }
 .shuai-basket-bar  { background: #2a2424; color: white; display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; cursor: default; }
 .bsk-left  { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
 .bsk-icon  { font-size: 1.25em; position: relative; flex-shrink: 0; }
@@ -148,14 +187,14 @@ footer  { display: none !important; }
 .bsk-preview { font-size: .8em; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bsk-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .bsk-count { font-size: 1em !important; font-weight: 600 !important; color: #fff !important; background: rgba(255,255,255,.1); padding: 4px 12px; border-radius: 20px; }
-.shuai-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.48); z-index: 200; }
-.shuai-drawer  { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%); width: min(430px,100vw); max-height: 68vh; background: white; border-radius: 18px 18px 0 0; z-index: 201; display: flex; flex-direction: column; transition: transform .32s cubic-bezier(.32,0,.15,1); box-shadow: 0 -6px 36px rgba(0,0,0,.18); }
+.shuai-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.48); z-index: 99998 !important; cursor: pointer; }
+.shuai-drawer  { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%); width: min(430px,100vw); max-height: 68vh; background: white; border-radius: 18px 18px 0 0; z-index: 99999 !important; display: flex; flex-direction: column; transition: transform .32s cubic-bezier(.32,0,.15,1); box-shadow: 0 -6px 36px rgba(0,0,0,.18); }
 .shuai-drawer.open { transform: translateX(-50%) translateY(0); }
 .shuai-drawer-handle { width: 38px; height: 4px; background: #ddd; border-radius: 2px; margin: 10px auto 6px; }
-.shuai-drawer-header { padding: 8px 20px 14px; border-bottom: 1px solid #f0ece8; display: flex; justify-content: space-between; align-items: center; }
+.shuai-drawer-header { padding: 8px 20px 14px; border-bottom: 1px solid #f0ece8; display: flex; justify-content: space-between; align-items: center; color: black; }
 .shuai-drawer-title  { font-weight: 600; font-size: .97em; }
 .shuai-drawer-close  { background: none; border: none; font-size: 1.05em; cursor: pointer; color: #aaa; padding: 4px 8px; }
-.shuai-drawer-body   { overflow-y: auto; flex: 1; padding: 10px 20px; }
+.shuai-drawer-body   { overflow-y: auto; flex: 1; padding: 10px 20px; color: black; }
 .drawer-item  { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f3efe9; }
 .di-name { font-weight: 500; font-size: .93em; }
 .di-meta { font-size: .8em; color: #999; }
@@ -165,7 +204,7 @@ footer  { display: none !important; }
 #btn-next-hidden { position: fixed !important; top: -9999px !important; left: -9999px !important; width: 1px !important; height: 36px !important; opacity: 0 !important; z-index: -999 !important; overflow: hidden !important; }
 
 /* ── 食材表格 ── */
-.ingredient-table-wrap .ingredient-display-table { width: 100%; border-collapse: collapse; }
+.ingredient-table-wrap .ingredient-display-table { width: 100%; border-collapse: collapse; color: black; }
 .ingredient-table-wrap .ingredient-display-table th,
 .ingredient-table-wrap .ingredient-display-table td { border: 1px solid #ede8e2; padding: .38em .55em; text-align: left; font-size: .88em; }
 .ingredient-table-wrap .ingredient-display-table th { background: #f7f3ee; font-weight: 600; }
@@ -173,8 +212,7 @@ footer  { display: none !important; }
 #ingredient-table-html { overflow: visible !important; max-height: none !important; }
 
 /* ── 步骤2：偏好 ── */
-#page-step1 { background: #f3f0ec; min-height: 60vh; }
-.pref-acc { margin: 8px 12px !important; border-radius: 12px !important; overflow: hidden !important; box-shadow: 0 2px 10px rgba(0,0,0,.07) !important; border: 1px solid #ede8e2 !important; background: white !important; }
+.pref-acc { margin: 8px 12px !important; border-radius: 12px !important; overflow: hidden !important; box-shadow: 0 4px 14px rgba(0,0,0,.2) !important; border: none !important; background: white !important; }
 .pref-acc--hero { border-color: #f5c89a !important; }
 .pref-acc > div:first-child { background: white !important; font-family: 'Noto Sans SC', sans-serif !important; font-size: .97em !important; color: #2a2a2a !important; padding: 14px 18px !important; transition: background .15s !important; }
 .pref-acc > div:first-child:hover { background: #fef9f4 !important; }
@@ -187,7 +225,7 @@ footer  { display: none !important; }
 #pref-half-row { margin: 0 4px; gap: 0; }
 #allergen-col .pref-acc, #people-col .pref-acc { margin: 8px 8px !important; }
 #load-pref-btn { margin: 4px 12px 0; width: calc(100% - 24px); }
-#pref_status, #result_status { margin: 2px 12px; }
+#pref_status, #result_status { margin: 2px 12px; color: white; }
 #step1-nav-row { margin: 8px 12px 16px; gap: 8px; }
 #broth-radio .wrap { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 12px !important; padding: 10px !important; }
 #broth-radio label { height: 90px !important; background: white !important; border: 2px solid #eee !important; border-radius: 15px !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: all .2s !important; box-shadow: 0 2px 6px rgba(0,0,0,.05) !important; }
@@ -195,24 +233,22 @@ footer  { display: none !important; }
 #broth-radio input[type="radio"] { display: none !important; }
 
 /* ── 步骤3：方案结果 ── */
-#page-step2 { background: #f3f0ec; }
-#plan-scroll-wrap { background: white; margin: 12px; border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 14px rgba(0,0,0,.07); max-height: 44vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #e0d8d0 #f5f0ea; }
+#plan-scroll-wrap { background: white; margin: 12px; border-radius: 14px; padding: 16px 18px; box-shadow: 0 4px 14px rgba(0,0,0,.2); max-height: 44vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #e0d8d0 #f5f0ea; color: black; }
 #plan-scroll-wrap::-webkit-scrollbar { width: 4px; }
 #plan-scroll-wrap::-webkit-scrollbar-track { background: #f5f0ea; }
 #plan-scroll-wrap::-webkit-scrollbar-thumb { background: #d8cfc7; border-radius: 2px; }
 .eating-btn-wrap { display: flex; justify-content: center; padding: 18px 0 10px; }
-#btn-start-eating { display: none; }
 #btn-start-eating button, #page-step2 #btn-start-eating button { width: 112px !important; height: 112px !important; border-radius: 50% !important; font-family: 'Noto Serif SC', serif !important; font-size: 1.1em !important; font-weight: 700 !important; line-height: 1.45 !important; white-space: pre-line !important; background: linear-gradient(145deg,#e07c24 0%,#c0392b 100%) !important; color: white !important; border: none !important; box-shadow: 0 4px 22px rgba(192,57,43,.4), 0 0 0 7px rgba(224,124,36,.13) !important; transition: transform .2s, box-shadow .2s !important; }
 #btn-start-eating button:hover { transform: scale(1.06) !important; box-shadow: 0 8px 32px rgba(192,57,43,.52), 0 0 0 9px rgba(224,124,36,.18) !important; }
 #share-row { margin: 4px 12px 0; gap: 8px; }
-#copy-status-html, #qr-display-html { margin: 2px 12px; min-height: 0; }
+#copy-status-html, #qr-display-html { margin: 2px 12px; min-height: 0; color: white; }
 #step2-nav-row { margin: 8px 12px 16px; gap: 8px; }
 
 /* ── 步骤4：计时 ── */
-#hotpot-timer-display { margin: 10px; font-family: 'Noto Sans SC', sans-serif; }
+#hotpot-timer-display { margin: 10px; font-family: 'Noto Sans SC', sans-serif; color: white; }
 
 /* ── 开锅检测区域 ── */
-#boiling-detect-group { background: white; border-radius: 14px; padding: 12px; margin: 0 12px 8px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+#boiling-detect-group { background: white; border-radius: 14px; padding: 12px; margin: 0 12px 8px; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
 #boiling-image-input { border-radius: 10px !important; }
 #btn-detect-boiling { margin-top: 8px; width: 100%; }
 #boiling-result-html { margin-top: 4px; }
@@ -223,6 +259,166 @@ footer  { display: none !important; }
 .gradio-container .block.padded { padding: 6px 0 !important; }
 """
 
+# 上拉菜单：在「实际包含应用的 document」上做点击委托（兼容同页/iframe）
+_DRAWER_JS = r"""
+(function() {
+  var attachedDocs = {};
+  function openBasket(area) {
+    var o = area.querySelector('.shuai-overlay');
+    var d = area.querySelector('.shuai-drawer');
+    if (!o || !d) return;
+    o._area = area;
+    o._drawer = d;
+    var doc = area.ownerDocument || document;
+    var root = doc.body;
+    if (!root) return;
+    root.appendChild(o);
+    root.appendChild(d);
+    o.style.zIndex = '99998';
+    o.style.position = 'fixed';
+    o.style.inset = '0';
+    o.style.display = 'block';
+    d.style.zIndex = '99999';
+    d.style.position = 'fixed';
+    d.classList.add('open');
+    if (!o._shuaiCloseBound) {
+      o._shuaiCloseBound = true;
+      o.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); closeBasket(o); });
+      var closeBtn = d.querySelector('.shuai-drawer-close');
+      if (closeBtn) closeBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); closeBasket(o); });
+      var nextBtn = d.querySelector('.shuai-drawer-next');
+      if (nextBtn) nextBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeBasket(o);
+        setTimeout(function() {
+          var doc2 = o.ownerDocument || document;
+          var btn = doc2.getElementById('btn-next-in-bar');
+          if (btn) { var b = btn.querySelector('button'); if (b) b.click(); }
+        }, 120);
+      });
+    }
+  }
+  function closeBasket(overlay) {
+    var area = overlay._area;
+    var d = overlay._drawer;
+    if (!d) return;
+    overlay.style.display = 'none';
+    d.classList.remove('open');
+    if (area && area.parentNode) {
+      try {
+        area.appendChild(overlay);
+        area.appendChild(d);
+      } catch (err) {}
+    } else {
+      var doc = overlay.ownerDocument || document;
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (d.parentNode) d.parentNode.removeChild(d);
+    }
+    delete overlay._area;
+    delete overlay._drawer;
+  }
+  function resolveTarget(t) {
+    if (!t || !t.closest) return null;
+    if (t.closest('.bsk-left')) return t.closest('.shuai-basket-area');
+    return null;
+  }
+  function screenFlash(doc, times, callback) {
+    if (!doc || !doc.body) { if (callback) callback(); return; }
+    var div = doc.createElement('div');
+    div.id = 'shuai-debug-flash';
+    div.style.cssText = 'position:fixed;inset:0;background:#f00;z-index:100000;opacity:0;pointer-events:none;transition:opacity 0.08s ease;';
+    doc.body.appendChild(div);
+    var step = 0;
+    var maxStep = times * 2;
+    function tick() {
+      if (step >= maxStep) {
+        if (div.parentNode) div.parentNode.removeChild(div);
+        if (callback) callback();
+        return;
+      }
+      div.style.opacity = step % 2 === 0 ? '0.45' : '0';
+      step++;
+      setTimeout(tick, 100);
+    }
+    setTimeout(tick, 50);
+  }
+  var handler = function(e) {
+    var t = e.target;
+    var area = resolveTarget(t);
+    if (!area && e.composedPath) {
+      var path = e.composedPath();
+      for (var i = 0; i < path.length; i++) {
+        area = resolveTarget(path[i]);
+        if (area) break;
+      }
+    }
+    if (area) {
+      e.preventDefault();
+      e.stopPropagation();
+      openBasket(area);
+      return;
+    }
+    if (t.closest && t.closest('.shuai-overlay')) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeBasket(t.closest('.shuai-overlay'));
+      return;
+    }
+    if (t.closest && t.closest('.shuai-drawer-close')) {
+      e.preventDefault();
+      e.stopPropagation();
+      var drawer = t.closest('.shuai-drawer');
+      var overlay = drawer && drawer.previousElementSibling;
+      if (overlay && overlay.classList && overlay.classList.contains('shuai-overlay')) closeBasket(overlay);
+      return;
+    }
+    if (t.closest && t.closest('.shuai-drawer-next')) {
+      e.preventDefault();
+      e.stopPropagation();
+      var drawer = t.closest('.shuai-drawer');
+      var overlay = drawer && drawer.previousElementSibling;
+      if (overlay && overlay.classList && overlay.classList.contains('shuai-overlay')) closeBasket(overlay);
+      var doc = (overlay && overlay.ownerDocument) || document;
+      setTimeout(function() {
+        var btn = doc.getElementById('btn-next-in-bar');
+        if (btn) { var b = btn.querySelector('button'); if (b) b.click(); }
+      }, 120);
+      return;
+    }
+  };
+  function attachToDoc(doc) {
+    if (!doc || attachedDocs[doc]) return;
+    try {
+      doc.addEventListener('click', handler, true);
+      attachedDocs[doc] = true;
+    } catch (err) {}
+  }
+  function attach() {
+    attachToDoc(document);
+    try {
+      if (window.frames) {
+        for (var i = 0; i < window.frames.length; i++) {
+          try {
+            var f = window.frames[i];
+            if (f && f.document) attachToDoc(f.document);
+          } catch (e) {}
+        }
+      }
+      var iframes = document.querySelectorAll('iframe');
+      for (var j = 0; j < iframes.length; j++) {
+        try {
+          var idoc = iframes[j].contentDocument || iframes[j].contentWindow && iframes[j].contentWindow.document;
+          if (idoc) attachToDoc(idoc);
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+  setTimeout(attach, 100);
+  setTimeout(attach, 500);
+  setTimeout(attach, 1500);
+})();
+"""
 
 # ── 主界面构建 ───────────────────────────────────────────────────
 
@@ -253,8 +449,10 @@ def create_ui():
         step_home = gr.Column(visible=True, elem_id="page-home")
         with step_home:
             gr.HTML(value=homepage_html())
-            btn_enter = gr.Button("开始", elem_id="btn-enter-home", variant="primary")
-            gr.HTML('<div class="hp-bounce">▼</div>')
+            with gr.Column(elem_id="hp-action-block"):
+                gr.HTML(value=homepage_action_card_html())
+                btn_enter = gr.Button("开始定制", elem_id="btn-enter-home", variant="secondary")
+                gr.HTML('<div class="hp-bounce">▼</div>')
 
         # ══════════════════════════════════════════════════════════
         # 步骤1：输入食材
@@ -270,30 +468,21 @@ def create_ui():
                         ingredient_name_input = gr.Textbox(label="🖊 食材名称", placeholder="如：毛肚、肥牛、土豆片", lines=1, elem_id="ing-name-tb")
                         ingredient_search_dd  = gr.Dropdown(label="🔍 搜索补全", choices=[], value=None, allow_custom_value=True, interactive=True, elem_id="ing-search-dd")
                         ingredient_default_hint = gr.Markdown("", visible=True)
-                    with gr.Column(scale=2, elem_id="ing-voice-col"):
-                        voice_input  = gr.Audio(label="🎤 语音输入", sources=["microphone", "upload"], type="filepath")
-                        btn_voice    = gr.Button("识别语音", size="sm", elem_id="btn-voice-rec")
-                        voice_status = gr.Markdown("", visible=True)
                 with gr.Row(elem_id="time-portion-row"):
                     ingredient_time_input    = gr.Slider(label="涮煮时间(秒)", minimum=0, maximum=600, value=0, step=5, info="留0则使用库默认", scale=2)
                     ingredient_portion_input = gr.Slider(label="份数", minimum=1, maximum=99, value=1, step=1, scale=1)
                 with gr.Row(elem_id="ing-confirm-row"):
                     btn_add_row      = gr.Button("✔ 加入清单", variant="primary", elem_id="btn-confirm-add")
                     btn_reject_input = gr.Button("✘ 清空",     variant="secondary", elem_id="btn-clear-input")
-
-            with gr.Group(elem_id="img-rec-group"):
-                gr.HTML('<div class="shuai-sec-sep">📷 识图输入</div>')
-                image_input  = gr.Image(label="上传菜单 / 菜品图", type="filepath", sources=["upload"])
-                image_status = gr.Markdown("", visible=True)
-                btn_image    = gr.Button("识别图片并填入食材", size="sm")
-
-            with gr.Accordion("📋 批量粘贴食材（点击展开）", open=False, elem_id="batch-acc"):
-                gr.Markdown("将食材用**逗号、顿号或换行**分隔后粘贴，一键添加。")
-                batch_paste_input = gr.Textbox(label="", placeholder="肥牛、毛肚、鸭肠、虾滑、土豆片", lines=3)
-                with gr.Row():
-                    btn_batch_add   = gr.Button("一键批量添加", variant="primary",   size="sm")
-                    btn_batch_clear = gr.Button("清空",         variant="secondary", size="sm")
-                batch_status = gr.Markdown("")
+                with gr.Row(elem_id="ing-voice-img-row"):
+                    with gr.Column(scale=1, elem_id="ing-voice-col"):
+                        voice_input   = gr.Audio(label="🎤 语音", sources=["microphone", "upload"], type="filepath", elem_id="ing-voice-audio")
+                        btn_voice     = gr.Button("识别语音", size="sm", elem_id="btn-voice-rec")
+                        voice_status  = gr.Markdown("", visible=True)
+                    with gr.Column(scale=1, elem_id="ing-img-col"):
+                        image_input   = gr.Image(label="📷 识图", type="filepath", sources=["upload"], elem_id="ing-image-input")
+                        btn_image     = gr.Button("识图填入", size="sm", elem_id="btn-image-rec")
+                        image_status  = gr.Markdown("", visible=True)
 
             merchant_status = gr.Markdown("", visible=True, elem_id="merchant-status")
             btn_merchant    = gr.Button("🔗 一键接入商家点餐系统", size="sm", variant="secondary", elem_id="btn-merchant")
@@ -446,17 +635,6 @@ def create_ui():
 
         btn_del_selected.click(fn=_del_v4, inputs=[ingredient_table_state, ingredient_delete_dd], outputs=[ingredient_table_state, ingredient_table, ingredient_delete_dd, basket_bar_html_comp])
 
-        # 批量添加
-        def _batch_v4(text, state):
-            try:
-                new_state, html, msg, dd_update = batch_add_ingredients(text, state)
-                return (new_state, html, msg, gr.update(choices=ingredient_delete_choices(new_state), value=None), basket_bar_html(len(new_state), new_state))
-            except Exception as e:
-                return (state or [], ingredient_table_html(state or []), f"❌ {e}", gr.update(choices=[], value=None), basket_bar_html(0, []))
-
-        btn_batch_add.click(fn=_batch_v4, inputs=[batch_paste_input, ingredient_table_state], outputs=[ingredient_table_state, ingredient_table, batch_status, ingredient_delete_dd, basket_bar_html_comp])
-        btn_batch_clear.click(fn=lambda: "", inputs=[], outputs=[batch_paste_input])
-
         # 图片识别
         def _img_v4(img, state):
             try:
@@ -485,7 +663,7 @@ def create_ui():
 
         btn_merchant.click(fn=_merchant_v4, inputs=[ingredient_table_state], outputs=[ingredient_table_state, ingredient_table, merchant_status, ingredient_delete_dd, basket_bar_html_comp])
 
-        # 底部「下一步」按钮
+        # 底部「下一步」：参考“隐藏按钮”模式，抽屉内「下一步」由 JS 触发此按钮；底部栏仅保留 HTML 购物车条 + 此按钮，无单独“打开购物车”Gradio 按钮
         btn_next_bar.click(fn=nav_next_v4,     inputs=[step_state], outputs=_nav_outputs)
         btn_next_visible.click(fn=nav_next_v4, inputs=[step_state], outputs=_nav_outputs)
 
@@ -556,15 +734,24 @@ def create_ui():
             outputs=[timer_reminder_md, last_beeped_put, last_beeped_take, timer_beep_html],
         )
 
+        # 页面加载时注入 JS：事件委托处理两个上拉菜单的点击（Gradio 不执行 HTML 内 script）
+        demo.load(js=_DRAWER_JS)
+
     return demo
 
 
-if __name__ == "__main__":
+def launch_demo():
+    """创建界面并启动服务（app.py 部署入口调用）。"""
+    from config import SERVER_NAME, SERVER_PORT, GRADIO_SHARE
     demo = create_ui()
     demo.launch(
-        server_name="0.0.0.0",
-        server_port=7860,
-        share=True,
+        server_name=SERVER_NAME,
+        server_port=SERVER_PORT,
+        share=GRADIO_SHARE,
         theme=gr.themes.Soft(primary_hue="orange"),
         css=_CSS,
     )
+
+
+if __name__ == "__main__":
+    launch_demo()

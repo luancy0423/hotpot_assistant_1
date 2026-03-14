@@ -15,7 +15,7 @@
 hotpot_assistant/
 ├── api.py                      # 主API入口，统一对外接口
 ├── app.py                      # ModelScope 约定入口（见官方部署教程）
-├── app_gradio.py               # Gradio Web 界面实现
+├── frontend/                   # Gradio Web 界面（ui.py = 组件+事件绑定）
 ├── demo.py                     # 演示脚本
 ├── requirements.txt            # Python 依赖（含 gradio）
 ├── README.md                   # 项目说明
@@ -103,7 +103,7 @@ hotpot_assistant/
 pip install -r requirements.txt
 
 # 启动 Web 界面（默认 http://0.0.0.0:7860）
-python app_gradio.py
+python app.py
 ```
 
 - 本机访问：浏览器打开 **http://127.0.0.1:7860**
@@ -116,7 +116,7 @@ python app_gradio.py
 
 - **入口文件**：平台约定为 **`app.py`**，本项目已提供（内部调用 Gradio 并 `demo.launch()`）。
 - **完整步骤**（注册、创建 Studio、克隆/推送、必须文件清单、常见问题）：见 **[docs/MODELSCOPE_部署指南.md](docs/MODELSCOPE_部署指南.md)**。
-- **简要流程**：在 ModelScope 创建 Gradio 创空间 → 复制带 Token 的克隆地址 → 本机 `git remote add modelscope <地址>` → `git add app.py app_gradio.py api.py requirements.txt data/ services/ context/` → `git commit` → `git push modelscope master`（或 `main`）。
+- **简要流程**：在 ModelScope 创建 Gradio 创空间 → 复制带 Token 的克隆地址 → 本机 `git remote add modelscope <地址>` → `git add app.py api.py frontend/ requirements.txt data/ services/ context/` → `git commit` → `git push modelscope master`（或 `main`）。
 - 更多说明请参阅 [ModelScope 文档中心](https://www.modelscope.cn)。
 
 ## 快速开始（API 调用）
@@ -159,7 +159,7 @@ python demo.py
 |------|--------------|------|
 | **一键自动化测试** | `python run_tests.py` | 不依赖 pytest，覆盖：文本输入、方案生成（规则/特色/混合）、用户偏好、上下文加载、特色食材解析、食材库与 JSON 导出。全部通过则退出码 0。 |
 | **完整功能演示** | `python demo.py` | 依次演示：商家菜单、OCR、语音、文本、手动选择五种输入，以及涮煮方案生成、多模式对比。 |
-| **界面测试** | `python app_gradio.py` 后浏览器打开 http://127.0.0.1:7860 | 手动验证：输入食材、特色食材、偏好保存/加载、生成方案与时间线展示。 |
+| **界面测试** | `python app.py` 后浏览器打开 http://127.0.0.1:7860 | 手动验证：输入食材、特色食材、偏好保存/加载、生成方案与时间线展示。 |
 | **ModelScope 部署** | 推送后由平台构建并打开 Studio | 验证线上环境与 `app.py` 入口是否正常。 |
 
 推荐顺序：先跑 `python run_tests.py` 确认核心逻辑无 regression，再跑 `python demo.py` 看完整流程，最后用 Gradio 做一次界面与交互测试。

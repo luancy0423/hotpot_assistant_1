@@ -55,7 +55,7 @@
 3. 确保要部署的文件都已提交：
 
    ```bash
-   git add app.py app_gradio.py api.py demo.py run_tests.py requirements.txt
+   git add app.py api.py frontend/ demo.py run_tests.py requirements.txt
    git add data/ services/ context/
    git status
    git commit -m "feat: 涮涮AI Gradio 应用与 ModelScope 部署"
@@ -88,7 +88,7 @@
 
 3. 把当前项目里的所有需要的文件**复制**到刚克隆出来的目录里（保持目录结构）：
 
-   - 必须包含：`app.py`、`app_gradio.py`、`api.py`、`requirements.txt`
+   - 必须包含：`app.py`、`frontend/`、`api.py`、`requirements.txt`
    - 以及目录：`data/`、`services/`、`context/`
    - 可选：`demo.py`、`run_tests.py`、`README.md`、`docs/` 等
 
@@ -109,8 +109,8 @@
 | 路径 | 说明 |
 |------|------|
 | `app.py` | **必须**。ModelScope 约定的入口，内部会调用 `create_ui()` 并 `demo.launch()`。 |
-| `app_gradio.py` | **必须**。Gradio 界面与逻辑。 |
-| `api.py` | **必须**。主 API，被 app_gradio 调用。 |
+| `frontend/` | **必须**。Gradio 界面与逻辑（ui.py、handlers、components 等）。 |
+| `api.py` | **必须**。主 API，被 frontend 调用。 |
 | `requirements.txt` | **必须**。至少包含 `gradio>=4.0.0`，供平台安装依赖。 |
 | `data/` | **必须**。含 `ingredients_db.py`、`menu_api.py`、`user_preferences.py` 等。 |
 | `services/` | **必须**。含 `cooking_plan_service.py`、`recognition_service.py`、`llm_service.py`。 |
@@ -141,7 +141,7 @@
 git remote add modelscope http://oauth2:<Token>@www.modelscope.cn/studios/<用户名>/<空间名>.git
 
 # 2. 确保文件已提交
-git add app.py app_gradio.py api.py requirements.txt data/ services/ context/
+git add app.py api.py frontend/ requirements.txt data/ services/ context/
 git commit -m "Deploy to ModelScope"
 
 # 3. 推送（分支名以 Studio 页面显示为准）
