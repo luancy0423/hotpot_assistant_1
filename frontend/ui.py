@@ -11,8 +11,7 @@ from config import BROTH_CHOICES, TEXTURE_CHOICES, MODE_CHOICES
 from frontend.components import (
     homepage_html, homepage_action_card_html, step_header_html,
     basket_bar_html, boiling_result_html,
-    ingredient_table_html, ingredient_delete_choices,
-    add_ingredient_row, delete_selected_ingredient_row,
+    add_ingredient_row,
     copy_plan_html, generate_qr_html,
 )
 from frontend.parsers import (
@@ -224,14 +223,15 @@ footer  { display: none !important; }
   cursor: pointer !important;
 }
 .shuai-drawer-handle { width: 38px; height: 4px; background: #ddd; border-radius: 2px; margin: 10px auto 6px; }
-.shuai-drawer-header { padding: 8px 20px 14px; border-bottom: 1px solid #f0ece8; display: flex; justify-content: space-between; align-items: center; color: black; }
-.shuai-drawer-title  { font-weight: 600; font-size: .97em; }
-.shuai-drawer-close  { background: none; border: none; font-size: 1.05em; cursor: pointer; color: #aaa; padding: 4px 8px; }
-.shuai-drawer-body   { overflow-y: auto; flex: 1; padding: 10px 20px; color: black; }
-.drawer-item  { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f3efe9; }
-.di-name { font-weight: 500; font-size: .93em; }
-.di-meta { font-size: .8em; color: #999; }
-.drawer-empty { color: #bbb; font-size: .88em; text-align: center; padding: 24px 0; }
+.shuai-drawer-header { padding: 8px 20px 14px; border-bottom: 1px solid #f0ece8; display: flex; justify-content: space-between; align-items: center; color: #111 !important; }
+.shuai-drawer-title  { font-weight: 600; font-size: .97em; color: #111 !important; }
+.shuai-drawer-close  { background: none; border: none; font-size: 1.05em; cursor: pointer; color: #666; padding: 4px 8px; }
+.shuai-drawer-body   { overflow-y: auto; flex: 1; padding: 10px 20px; color: #111 !important; }
+.drawer-item  { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f3efe9; color: #111 !important; }
+.di-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.di-name { font-weight: 500; font-size: .93em; color: #111 !important; }
+.di-meta { font-size: .8em; color: #333 !important; }
+.drawer-empty { color: #555; font-size: .88em; text-align: center; padding: 24px 0; }
 .shuai-drawer-footer { padding: 12px 20px; border-top: 1px solid #f0ece8; display: flex; justify-content: flex-end; }
 .shuai-drawer-next   { background: linear-gradient(135deg, #e07c24, #c0392b); color: white; border: none; border-radius: 24px; padding: 10px 28px; font-size: .93em; cursor: pointer; font-family: 'Noto Sans SC', sans-serif; font-weight: 500; }
 #btn-next-hidden { position: fixed !important; top: -9999px !important; left: -9999px !important; width: 1px !important; height: 36px !important; opacity: 0 !important; z-index: -999 !important; overflow: hidden !important; }
@@ -290,39 +290,59 @@ footer  { display: none !important; }
 .block { border: none !important; box-shadow: none !important; }
 .gr-form { background: transparent !important; border: none !important; }
 .gradio-container .block.padded { padding: 6px 0 !important; }
+
+/* 隐藏后端的辅助组件区（避免 step1 多出一个 textbox） */
+.hidden-func-wrap { display: none !important; visibility: hidden !important; position: absolute !important; left: -9999px !important; }
+
+/* 抽屉内删除按钮的样式 */
+.drawer-del-btn {
+  background: transparent; border: none; font-size: 1.2em;
+  color: #999; cursor: pointer; padding: 0 10px; margin-left: 10px;
+}
+.drawer-del-btn:hover { color: #e74c3c; }
 """
 
-# 注入到页面头部的全局抽屉控制器（通过 gr.Blocks(..., head=_HEAD_JS) 挂载）
+# 注入到头部，避免 Svelte 刷新导致事件丢失
 _HEAD_JS = """
 <script>
-  // 注入到页面顶部的全局抽屉控制器
   window.shuaiToggleDrawer = function(show) {
     var overlay = document.getElementById('shuai-global-overlay');
     var drawer = document.getElementById('shuai-global-drawer');
     if (!overlay || !drawer) return;
-
     if (show) {
-      overlay.classList.add('active');
-      drawer.classList.add('active');
+      overlay.style.display = 'block';
+      setTimeout(function() { overlay.classList.add('active'); drawer.classList.add('active'); }, 10);
     } else {
       overlay.classList.remove('active');
       drawer.classList.remove('active');
+      setTimeout(function() { overlay.style.display = 'none'; }, 300);
     }
   };
 
-  // 抽屉内点击“下一步”时触发
   window.shuaiTriggerNext = function(e) {
     if(e) e.stopPropagation();
-    window.shuaiToggleDrawer(false); // 先收起抽屉
-
-    // 延迟 150ms 等待动画完成后，代为点击 Gradio 原生的下一步按钮
+    window.shuaiToggleDrawer(false);
     setTimeout(function() {
       var btnWrap = document.getElementById('btn-next-in-bar');
-      if (btnWrap) {
-        var btn = btnWrap.querySelector('button');
-        if (btn) btn.click();
-      }
+      if (btnWrap) { var btn = btnWrap.querySelector('button'); if (btn) btn.click(); }
     }, 150);
+  };
+
+  // 核心：点击抽屉里的删除按钮时触发（设置索引后触发 change 再点隐藏按钮，确保 Gradio 同步）
+  window.shuaiDeleteIngredient = function(index) {
+    var inputWrap = document.getElementById('hidden-delete-index');
+    if (inputWrap) {
+      var input = inputWrap.querySelector('input');
+      if (input) {
+        input.value = String(index);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    setTimeout(function() {
+      var btnWrap = document.getElementById('btn-hidden-delete');
+      if (btnWrap) { var btn = btnWrap.querySelector('button'); if (btn) btn.click(); }
+    }, 120);
   };
 </script>
 """
@@ -334,7 +354,7 @@ def create_ui():
     构建完整的 Gradio 多页应用。
     页面流：首页 → 步骤1（食材）→ 步骤2（偏好）→ 步骤3（方案）→ 步骤4（计时）
     """
-    with gr.Blocks(title="涮涮AI - 智能火锅助手", head=_HEAD_JS) as demo:
+    with gr.Blocks(title="涮涮AI - 智能火锅助手") as demo:
         gr.HTML('<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900'
                 '&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">')
 
@@ -394,11 +414,10 @@ def create_ui():
             merchant_status = gr.Markdown("", visible=True, elem_id="merchant-status")
             btn_merchant    = gr.Button("🔗 一键接入商家点餐系统", size="sm", variant="secondary", elem_id="btn-merchant")
 
-            gr.HTML('<div class="shuai-sec-sep" style="margin-top:8px">🧺 已添加的食材</div>')
-            ingredient_table = gr.HTML(value=ingredient_table_html([]), elem_id="ingredient-table-html", elem_classes=["ingredient-table-no-scroll"])
-            with gr.Row(elem_id="delete-row"):
-                ingredient_delete_dd = gr.Dropdown(label="选择要删除的行", choices=[], value=None, allow_custom_value=False, scale=3)
-                btn_del_selected     = gr.Button("删除所选行", variant="secondary", scale=1)
+            # 隐藏组件区：接收前端传来的删除索引，由 JS 触发（visible=False 避免页面上多出一个输入框）
+            with gr.Group(elem_classes=["hidden-func-wrap"]):
+                hidden_delete_index = gr.Number(value=-1, elem_id="hidden-delete-index", visible=False)
+                btn_hidden_delete   = gr.Button(elem_id="btn-hidden-delete", visible=False)
 
             with gr.Row(elem_id="step0-next-row"):
                 gr.HTML("")
@@ -518,57 +537,64 @@ def create_ui():
 
         ingredient_search_dd.change(fn=_on_search_select, inputs=[ingredient_search_dd], outputs=[ingredient_name_input, ingredient_search_dd, search_just_selected])
 
-        # 添加食材行
+        # 添加食材行：只更新购物车 HTML，不再返回表格与下拉
         def _add_v4(name, t, p, state):
             try:
-                state, _, _, nt, np_, _, choices = add_ingredient_row(name, t, p, state)
-                return (state, ingredient_table_html(state), "", nt, np_, "",
-                        gr.update(choices=choices, value=None), basket_bar_html(len(state), state))
+                state, _, _, nt, np_, _, _ = add_ingredient_row(name, t, p, state)
+                return (state, "", nt, np_, "", basket_bar_html(len(state), state, is_open=False))
             except Exception as e:
-                return (state or [], ingredient_table_html(state or []), f"❌ 错误：{e}", 0, 1, "",
-                        gr.update(choices=[], value=None), basket_bar_html(0, []))
+                return (state or [], f"❌ 错误：{e}", 0, 1, "", basket_bar_html(len(state or []), state or [], False))
 
-        btn_add_row.click(fn=_add_v4, inputs=[ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_table_state],
-                          outputs=[ingredient_table_state, ingredient_table, ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_default_hint, ingredient_delete_dd, basket_bar_html_comp])
+        btn_add_row.click(
+            fn=_add_v4,
+            inputs=[ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_table_state],
+            outputs=[ingredient_table_state, ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_default_hint, basket_bar_html_comp],
+        )
         btn_reject_input.click(fn=lambda: ("", 0, 1, ""), inputs=[], outputs=[ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_default_hint])
 
-        # 删除食材行
-        def _del_v4(state, sel):
+        # 响应抽屉内的删除操作（索引由 JS 写入 hidden_delete_index，删除后重置为 -1 避免误用）
+        def _do_hidden_delete(idx_val, state):
+            state = list(state or [])
             try:
-                new_state, _, choices = delete_selected_ingredient_row(state, sel)
-                return (new_state, ingredient_table_html(new_state), gr.update(choices=choices, value=None), basket_bar_html(len(new_state), new_state))
-            except Exception:
-                return (state or [], ingredient_table_html(state or []), gr.update(choices=[], value=None), basket_bar_html(0, []))
+                idx = int(idx_val) if idx_val is not None else -1
+                if 0 <= idx < len(state):
+                    state.pop(idx)
+            except (TypeError, ValueError):
+                pass
+            return (state, basket_bar_html(len(state), state, is_open=True), -1)
 
-        btn_del_selected.click(fn=_del_v4, inputs=[ingredient_table_state, ingredient_delete_dd], outputs=[ingredient_table_state, ingredient_table, ingredient_delete_dd, basket_bar_html_comp])
+        btn_hidden_delete.click(
+            fn=_do_hidden_delete,
+            inputs=[hidden_delete_index, ingredient_table_state],
+            outputs=[ingredient_table_state, basket_bar_html_comp, hidden_delete_index],
+        )
 
         # 图片识别
         def _img_v4(img, state):
             try:
-                state, _, status, choices = image_to_ingredients(img, state)
-                return (state, ingredient_table_html(state), status, gr.update(choices=choices, value=None), basket_bar_html(len(state), state))
+                state, _, status, _ = image_to_ingredients(img, state)
+                return (state, status, basket_bar_html(len(state), state))
             except Exception as e:
-                return (state or [], ingredient_table_html(state or []), f"❌ {e}", gr.update(choices=[], value=None), basket_bar_html(0, []))
+                return (state or [], f"❌ {e}", basket_bar_html(len(state or []), state or []))
 
-        btn_image.click(fn=_img_v4, inputs=[image_input, ingredient_table_state], outputs=[ingredient_table_state, ingredient_table, image_status, ingredient_delete_dd, basket_bar_html_comp])
+        btn_image.click(fn=_img_v4, inputs=[image_input, ingredient_table_state], outputs=[ingredient_table_state, image_status, basket_bar_html_comp])
 
         # 语音识别
         def _voice_v4(audio, state):
             try:
-                state, _, status, choices = voice_to_ingredients(audio, state)
-                return (state, ingredient_table_html(state), status, gr.update(choices=choices, value=None), basket_bar_html(len(state), state))
+                state, _, status, _ = voice_to_ingredients(audio, state)
+                return (state, status, basket_bar_html(len(state), state))
             except Exception as e:
-                return (state or [], ingredient_table_html(state or []), f"❌ {e}", gr.update(choices=[], value=None), basket_bar_html(0, []))
+                return (state or [], f"❌ {e}", basket_bar_html(len(state or []), state or []))
 
-        btn_voice.click(fn=_voice_v4, inputs=[voice_input, ingredient_table_state], outputs=[ingredient_table_state, ingredient_table, voice_status, ingredient_delete_dd, basket_bar_html_comp])
+        btn_voice.click(fn=_voice_v4, inputs=[voice_input, ingredient_table_state], outputs=[ingredient_table_state, voice_status, basket_bar_html_comp])
 
         # 商家系统（占位）
         def _merchant_v4(state):
             state = state or []
-            return (state, ingredient_table_html(state), "⚠️ 暂未适配商家点餐系统，敬请期待。",
-                    gr.update(choices=ingredient_delete_choices(state), value=None), basket_bar_html(len(state), state))
+            return (state, "⚠️ 暂未适配商家点餐系统，敬请期待。", basket_bar_html(len(state), state))
 
-        btn_merchant.click(fn=_merchant_v4, inputs=[ingredient_table_state], outputs=[ingredient_table_state, ingredient_table, merchant_status, ingredient_delete_dd, basket_bar_html_comp])
+        btn_merchant.click(fn=_merchant_v4, inputs=[ingredient_table_state], outputs=[ingredient_table_state, merchant_status, basket_bar_html_comp])
 
         # 底部「下一步」：参考“隐藏按钮”模式，抽屉内「下一步」由 JS 触发此按钮；底部栏仅保留 HTML 购物车条 + 此按钮，无单独“打开购物车”Gradio 按钮
         btn_next_bar.click(fn=nav_next_v4,     inputs=[step_state], outputs=_nav_outputs)
@@ -654,6 +680,7 @@ def launch_demo():
         share=GRADIO_SHARE,
         theme=gr.themes.Soft(primary_hue="orange"),
         css=_CSS,
+        head=_HEAD_JS,
     )
 
 

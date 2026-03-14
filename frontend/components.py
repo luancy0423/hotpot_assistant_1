@@ -189,11 +189,11 @@ def step_header_html(step_num: str, step_title: str, extra_cls: str = "") -> str
     )
 
 def basket_drawer_html(state: list) -> str:
-    """购物车抽屉内的食材列表 HTML（只读）。"""
+    """购物车抽屉内的食材列表 HTML（带删除按钮）。"""
     if not state:
         return '<p class="drawer-empty">尚未添加食材，请在上方输入。</p>'
     rows = []
-    for row in state:
+    for i, row in enumerate(state):
         name = (row[0] if row else "") or ""
         if not name:
             continue
@@ -204,20 +204,29 @@ def basket_drawer_html(state: list) -> str:
         except Exception:
             t = 0
         t_disp = f"{t}秒" if t > 0 else "库默认"
+
+        # 增加了一个 drawer-del-btn，点击时调用全局 JS 函数，并传入当前行的索引 i
         rows.append(
             f'<div class="drawer-item">'
+            f'<div class="di-info">'
             f'<span class="di-name">{name}</span>'
             f'<span class="di-meta">{t_disp} · {portion}份</span>'
+            f'</div>'
+            f'<button class="drawer-del-btn" onclick="window.shuaiDeleteIngredient({i})">✕</button>'
             f'</div>'
         )
     return "\n".join(rows) if rows else '<p class="drawer-empty">无有效食材。</p>'
 
-def basket_bar_html(count: int, state: list) -> str:
-    """底部购物车栏 HTML（含上拉抽屉），采用全局动画触发，不再劫持DOM。"""
+
+def basket_bar_html(count: int, state: list, is_open: bool = False) -> str:
+    """底部购物车栏 HTML（含上拉抽屉）。增加了 is_open 参数以维持删除时的开闭状态。"""
     items_list = [r[0] for r in (state or []) if r and r[0]]
     preview = "、".join(items_list[:3]) + ("…" if len(items_list) > 3 else "") if items_list else "还未添加食材"
     badge   = f'<span class="bsk-badge">{count}</span>' if count > 0 else ""
     drawer_content = basket_drawer_html(state or [])
+
+    # 如果 is_open 为 True，则直接加上 active 类，确保删除刷新后抽屉不回落
+    active_cls = " active" if is_open else ""
 
     return f"""
 <div class="shuai-basket-area">
@@ -231,9 +240,8 @@ def basket_bar_html(count: int, state: list) -> str:
     </div>
   </div>
 
-  <div class="shuai-overlay" id="shuai-global-overlay" onclick="window.shuaiToggleDrawer(false)"></div>
-
-  <div class="shuai-drawer" id="shuai-global-drawer">
+  <div class="shuai-overlay{active_cls}" id="shuai-global-overlay" onclick="window.shuaiToggleDrawer(false)"></div>
+  <div class="shuai-drawer{active_cls}" id="shuai-global-drawer">
     <div class="shuai-drawer-handle"></div>
     <div class="shuai-drawer-header">
       <span class="shuai-drawer-title">已选食材（{count}件）</span>
