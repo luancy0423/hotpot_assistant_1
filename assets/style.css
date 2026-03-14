@@ -204,17 +204,27 @@ footer { display: none !important; }
   50% { transform: translateY(6px); }
 }
 
-/* ── 步骤1/第一步：食材输入（格子底色 + 黑色字体）────────────────── */
-/* 精确 ID + Gradio 可能带数字后缀的 id */
+/* ── 步骤1/第一步：食材输入（方案 B：外层 ing-card-wrap 负责米色底）────────────────── */
+/* 方案 B：ui.py 中用 gr.Column(elem_classes=["ing-card-wrap"]) 包住食材区，此处对壳设米色 */
+#ing-card-wrap,
+#page-step0 [class*="ing-card-wrap"] {
+  background: var(--shuai-cell-bg) !important;
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  margin: var(--card-margin);
+  box-shadow: var(--shuai-shadow);
+  border: none;
+}
+/* 内层 Group 透明，透出外层米色 */
 #ing-card-group,
 [id^="ing-card-group"],
 [id*="ing-card-group"] {
-  background: var(--shuai-cell-bg);
-  margin: var(--card-margin);
-  border-radius: var(--card-radius);
-  padding: var(--card-padding);
-  box-shadow: var(--shuai-shadow);
+  background: transparent;
+  margin: 0;
+  border-radius: 0;
+  padding: 0;
   border: none;
+  box-shadow: none;
   color: var(--hotpot-black);
 }
 #ing-card-group label,
@@ -244,9 +254,12 @@ footer { display: none !important; }
 }
 #img-rec-group label,
 [id*="img-rec-group"] label { color: #111 !important; }
-/* 第一步：食材名称/搜索补全/涮煮时间/份数/语音/识图 强制白底去橙（覆盖主题） */
+/* 第一步：食材名称/搜索补全/涮煮时间/份数/语音/识图 强制白底去橙（覆盖 Gradio 主题 primary 橙） */
+/* Gradio 主题变量名用下划线，如 input_background_fill、block_background_fill */
 #page-step0 #ing-card-group,
 #page-step0 #img-rec-group {
+  --input_background_fill: var(--hotpot-white) !important;
+  --block_background_fill: var(--hotpot-white) !important;
   --input-background-fill: var(--hotpot-white) !important;
   --background-fill-primary: var(--hotpot-white) !important;
   --background-fill-secondary: var(--hotpot-white) !important;
