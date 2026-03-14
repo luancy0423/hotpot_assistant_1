@@ -1416,6 +1416,9 @@ def _basket_bar_html(count: int, state: list) -> str:
     if(o)o.style.display='none';
     if(d)d.classList.remove('open');
   }}
+  function fireClick(el){{
+    el.dispatchEvent(new MouseEvent('click', {{bubbles:true, cancelable:true, view:window}}));
+  }}
   function grNext(){{
     // 触发底部栏的 Gradio「下一步」按钮（有后端绑定）
     var wrapper = document.getElementById('btn-next-in-bar') || document.querySelector('[id^="btn-next-in-bar"]');
