@@ -1335,6 +1335,37 @@ def _basket_drawer_html(state: list) -> str:
     return "\n".join(rows) if rows else '<p class="drawer-empty">无有效食材。</p>'
 
 
+def _boiling_result_html(icon: str, stage: str, description: str, advice: str) -> str:
+    """生成开锅检测结果的展示 HTML。"""
+    import html as _html
+    if not stage:
+        return ""
+    color_map = {
+        "沸腾": ("#c0392b", "#fff5f5", "#ffd5d5"),
+        "微沸": ("#e07c24", "#fff8f0", "#ffe5c0"),
+        "未沸": ("#2980b9", "#f0f7ff", "#c8e0f8"),
+        "无法判断": ("#888", "#f8f8f8", "#e8e8e8"),
+    }
+    text_color, bg_color, border_color = color_map.get(stage, ("#555", "#f8f8f8", "#ddd"))
+    desc_esc = _html.escape(description) if description else ""
+    adv_esc = _html.escape(advice) if advice else ""
+    desc_part = f"<p style=\"margin:4px 0 0;font-size:.82em;color:#666\">{desc_esc}</p>" if desc_esc else ""
+    adv_part = (
+        f"<p style=\"margin:6px 0 0;font-size:.88em;font-weight:600;color:{text_color}\">{adv_esc}</p>"
+        if adv_esc else ""
+    )
+    return (
+        f"<div style=\"background:{bg_color};border:1.5px solid {border_color};"
+        f"border-radius:12px;padding:12px 16px;margin:6px 0;\">"
+        f"<div style=\"display:flex;align-items:center;gap:8px;\">"
+        f"<span style=\"font-size:1.8em;line-height:1\">{icon}</span>"
+        f"<span style=\"font-size:1.05em;font-weight:700;color:{text_color}\">{_html.escape(stage)}</span>"
+        f"</div>"
+        f"{desc_part}{adv_part}"
+        f"</div>"
+    )
+
+
 def _basket_bar_html(count: int, state: list) -> str:
     """
     底部购物车栏（仿美团风格）+ 上拉抽屉。
@@ -1385,9 +1416,6 @@ def _basket_bar_html(count: int, state: list) -> str:
     if(o)o.style.display='none';
     if(d)d.classList.remove('open');
   }}
-  function fireClick(el){{
-    el.dispatchEvent(new MouseEvent('click', {{bubbles:true, cancelable:true, view:window}}));
-  }}
   function grNext(){{
     // 触发底部栏的 Gradio「下一步」按钮（有后端绑定）
     var wrapper = document.getElementById('btn-next-in-bar') || document.querySelector('[id^="btn-next-in-bar"]');
@@ -1408,6 +1436,7 @@ def _basket_bar_html(count: int, state: list) -> str:
       if(b.closest && b.closest('.shuai-basket-area')) continue;
       if(b.textContent.trim().indexOf('下一步')>=0){{ fireClick(b); return; }}
     }}
+    console.warn('Could not find next button');
   }}
   window.shuaiOpenBasket=openDrawer;
   window.shuaiCloseBasket=function(el){{closeDrawer();}};
@@ -1726,6 +1755,28 @@ def create_ui():
             )
             timer_beep_html = gr.HTML("")
             timer_bottom_md = gr.Markdown("")
+
+            # ── 开锅检测区域 ─────────────────────────────────────────
+            gr.HTML('<div class="shuai-sec-sep" style="margin:10px 0 4px">📷 开锅检测</div>')
+            with gr.Group(elem_id="boiling-detect-group"):
+                boiling_image = gr.Image(
+                    label="拍摄 / 上传锅底照片",
+                    sources=["webcam", "upload"],
+                    type="filepath",
+                    elem_id="boiling-image-input",
+                    height=180,
+                )
+                btn_detect_boiling = gr.Button(
+                    "🔍 检测是否开锅",
+                    variant="primary",
+                    size="sm",
+                    elem_id="btn-detect-boiling",
+                )
+                boiling_result_html = gr.HTML(
+                    value="",
+                    elem_id="boiling-result-html",
+                )
+
             btn_back_from_timer = gr.Button("结束计时，返回首页", elem_id="btn-back-timer")
 
         # ══════════════════════════════════════════════════════════════════
@@ -2033,6 +2084,32 @@ def create_ui():
         )
 
         # ── 步骤4：吃饭计时 ───────────────────────────────────────────────
+
+        def _do_detect_boiling(img_path):
+            """拍照/上传图片后调用 VLM 检测火锅是否已开锅，返回结果 HTML。"""
+            import os as _os
+            if img_path is None or not _os.path.isfile(str(img_path or "")):
+                return _boiling_result_html("⚠️", "未沸", "请先拍摄或上传一张锅底照片", "")
+            try:
+                with open(img_path, "rb") as f:
+                    img_bytes = f.read()
+            except Exception as e:
+                return _boiling_result_html("❌", "无法判断", f"读取图片失败：{e}", "")
+            ext = _os.path.splitext(img_path)[1].lower()
+            mime = "image/png" if ext == ".png" else "image/jpeg"
+            resp = api.detect_boiling(image_data=img_bytes, mime_type=mime)
+            if not resp.success:
+                return _boiling_result_html("❌", "无法判断", f"检测失败：{resp.error}", "")
+            d = resp.data
+            icon = {"沸腾": "🔥", "微沸": "♨️", "未沸": "⏳", "无法判断": "❓"}.get(d["stage"], "❓")
+            return _boiling_result_html(icon, d["stage"], d["description"], d["advice"])
+
+        btn_detect_boiling.click(
+            fn=_do_detect_boiling,
+            inputs=[boiling_image],
+            outputs=[boiling_result_html],
+        )
+
         btn_back_from_timer.click(
             fn=_nav_back_timer_v4,
             inputs=[step_state, start_time_state],
@@ -2578,5 +2655,17 @@ footer { display: none !important; }
 .block { border: none !important; box-shadow: none !important; }
 .gr-form { background: transparent !important; border: none !important; }
 .gradio-container .block.padded { padding: 6px 0 !important; }
+
+/* ── 开锅检测区域 ──────────────────────────────────────── */
+#boiling-detect-group {
+  background: white;
+  border-radius: 14px;
+  padding: 12px;
+  margin: 0 12px 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06);
+}
+#boiling-image-input { border-radius: 10px !important; }
+#btn-detect-boiling { margin-top: 8px; width: 100%; }
+#boiling-result-html { margin-top: 4px; }
 """,
     )

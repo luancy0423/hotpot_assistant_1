@@ -395,6 +395,158 @@ def recognize_ingredients_from_image(
     return [str(x).strip() for x in ing if x and str(x).strip()]
 
 
+# ============== 视觉模型：检测火锅是否开锅 ==============
+
+# 开锅检测专用模型（默认与食材识别共用同一 VLM，可独立覆盖）
+VLM_BOILING_MODEL = os.environ.get("HOTPOT_VLM_BOILING_MODEL", "").strip() or None
+
+
+def detect_hotpot_boiling_from_image(
+    image_data: bytes,
+    api_key: str = None,
+    base_url: str = None,
+    model: str = None,
+    mime_type: str = "image/jpeg",
+) -> dict:
+    """
+    使用 VLM 分析图片，判断火锅是否已开锅（沸腾）。
+
+    返回字典：
+        {
+            "is_boiling":  bool,          # True = 已开锅 / False = 未开锅
+            "stage":       str,           # "沸腾" | "微沸" | "未沸" | "无法判断"
+            "description": str,           # 对画面的一句自然语言描述
+            "advice":      str,           # 给用户的操作建议
+            "error":       str | None,    # 调用失败时的错误信息
+        }
+
+    api_key / base_url 未传时从环境变量读取（与文本 LLM 相同键名）。
+    """
+    _ensure_api_env()
+    api_key = (api_key or os.environ.get("HOTPOT_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY") or "").strip()
+    if not api_key:
+        return {
+            "is_boiling": False,
+            "stage": "无法判断",
+            "description": "",
+            "advice": "",
+            "error": "未配置 API Key，请设置 HOTPOT_LLM_API_KEY 或 OPENAI_API_KEY",
+        }
+    base_url = (base_url or os.environ.get("HOTPOT_LLM_BASE_URL") or "").strip() or None
+    _vlm_model = (
+        (model or "").strip()
+        or (VLM_BOILING_MODEL or "").strip()
+        or (os.environ.get("HOTPOT_VLM_MODEL") or "").strip()
+        or VLM_INGREDIENTS_MODEL
+    )
+
+    image_b64 = base64.b64encode(image_data).decode("ascii")
+
+    prompt = (
+        "这是一张火锅锅底的图片。请判断火锅当前的沸腾状态，只输出合法 JSON，不要任何说明或 markdown。\n"
+        "JSON 字段说明：\n"
+        "  stage: 必须是 \"沸腾\"、\"微沸\"、\"未沸\"、\"无法判断\" 之一\n"
+        "  is_boiling: 布尔值，stage 为\"沸腾\"时为 true，其余为 false\n"
+        "  description: 一句话描述当前画面（15 字以内）\n"
+        "  advice: 给用户的一句操作提示（20 字以内）\n"
+        "判断依据：\n"
+        "  - 沸腾：可见大量气泡翻滚、明显沸腾水花或浓厚白色蒸汽\n"
+        "  - 微沸：可见少量小气泡或轻微冒烟，但未完全沸腾\n"
+        "  - 未沸：液面平静，无明显气泡或蒸汽\n"
+        "  - 无法判断：图片模糊、非锅底画面或无法辨别\n"
+        "输出示例：\n"
+        '{"stage":"沸腾","is_boiling":true,"description":"锅底大量气泡翻滚","advice":"可以开始下锅啦！"}'
+    )
+
+    _default = {
+        "is_boiling": False,
+        "stage": "无法判断",
+        "description": "",
+        "advice": "请重新拍摄锅底正面图片",
+        "error": None,
+    }
+
+    try:
+        content = _call_chat_completion_vision(
+            api_key=api_key,
+            image_base64=image_b64,
+            user_text=prompt,
+            base_url=base_url,
+            model=_vlm_model,
+            mime_type=mime_type,
+            timeout=60.0,
+        )
+    except Exception as e:
+        return {**_default, "error": str(e)}
+
+    if not content:
+        return {**_default, "error": "VLM 返回内容为空"}
+
+    text = content.strip()
+    # 去掉可能的 markdown 代码块
+    for pattern in [r"```(?:json)?\s*([\s\S]*?)```", r"```\s*([\s\S]*?)```"]:
+        m = re.search(pattern, text)
+        if m:
+            text = m.group(1).strip()
+            break
+
+    try:
+        obj = json.loads(text)
+    except json.JSONDecodeError:
+        # 尝试从文本中提取 stage 关键字作为兜底
+        for stage in ("沸腾", "微沸", "未沸"):
+            if stage in text:
+                return {
+                    **_default,
+                    "stage": stage,
+                    "is_boiling": stage == "沸腾",
+                    "description": text[:30],
+                    "advice": "可以开始下锅啦！" if stage == "沸腾" else "请继续等待锅底加热",
+                    "error": None,
+                }
+        return {**_default, "error": f"无法解析 VLM 返回：{text[:100]}"}
+
+    stage = str(obj.get("stage") or "无法判断").strip()
+    if stage not in ("沸腾", "微沸", "未沸", "无法判断"):
+        stage = "无法判断"
+    is_boiling = bool(obj.get("is_boiling", stage == "沸腾"))
+    description = str(obj.get("description") or "").strip()
+    advice = str(obj.get("advice") or "").strip()
+    if not advice:
+        advice = {
+            "沸腾": "可以开始下锅啦！",
+            "微沸": "再稍等片刻，即将沸腾",
+            "未沸": "请继续等待锅底加热",
+            "无法判断": "请重新拍摄锅底正面图片",
+        }.get(stage, "")
+    return {"is_boiling": is_boiling, "stage": stage, "description": description, "advice": advice, "error": None}
+
+
+def _ensure_api_env():
+    """确保环境变量已加载（复用 api.py 的 .env 读取逻辑，在 llm_service 独立使用时也能生效）。"""
+    import sys
+    # 如果 api 模块已加载，借用它的 _ensure_dotenv_loaded；否则自行读取
+    api_mod = sys.modules.get("api") or sys.modules.get("hotpot_assistant_1.api")
+    if api_mod and hasattr(api_mod, "_ensure_dotenv_loaded"):
+        api_mod._ensure_dotenv_loaded()
+        return
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_path = os.path.join(root, ".env")
+    if not os.path.isfile(env_path):
+        return
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, _, v = line.partition("=")
+                    k, v = k.strip(), v.strip().strip("'\"")
+                    if k and os.environ.get(k) is None:
+                        os.environ[k] = v
+    except Exception:
+        pass
+
+
 def _fallback_build_sort_prompt(
     items: List[Any],
     broth_type: str,

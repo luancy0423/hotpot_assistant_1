@@ -495,6 +495,53 @@ class HotpotAssistantAPI:
             return APIResponse(success=False, error=str(e))
 
 
+    # ============== 5. 视觉检测：火锅开锅状态 ==============
+
+    def detect_boiling(
+        self,
+        image_data: bytes,
+        mime_type: str = "image/jpeg",
+    ) -> "APIResponse":
+        """
+        使用 VLM 分析火锅图片，判断是否已开锅（沸腾）。
+
+        Args:
+            image_data: 图片的原始字节数据（JPEG / PNG）
+            mime_type:  图片 MIME 类型，默认 "image/jpeg"
+
+        Returns:
+            APIResponse，data 字段包含：
+                is_boiling  (bool)  是否沸腾
+                stage       (str)   "沸腾" | "微沸" | "未沸" | "无法判断"
+                description (str)   对画面的一句描述
+                advice      (str)   给用户的操作建议
+        """
+        import os
+        from services.llm_service import detect_hotpot_boiling_from_image
+        _ensure_dotenv_loaded()
+        try:
+            result = detect_hotpot_boiling_from_image(
+                image_data=image_data,
+                mime_type=mime_type,
+            )
+        except Exception as e:
+            return APIResponse(success=False, error=str(e))
+
+        if result.get("error"):
+            return APIResponse(success=False, error=result["error"])
+
+        return APIResponse(
+            success=True,
+            data={
+                "is_boiling":  result["is_boiling"],
+                "stage":       result["stage"],
+                "description": result["description"],
+                "advice":      result["advice"],
+            },
+            message=f"检测完成：{result['stage']}",
+        )
+
+
 # ============== 快捷函数（用于演示）==============
 
 def demo_full_workflow():
