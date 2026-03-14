@@ -382,7 +382,17 @@ def create_ui():
             start = getattr(st, "timer_start_time", 0) or 0
             put = getattr(st, "last_beeped_put", -1) or -1
             take = getattr(st, "last_beeped_take", -1) or -1
-            reminder, new_put, new_take, beep = timer_tick(plan, start, put, take)
+            is_paused = getattr(st, "timer_paused", False)
+            paused_elapsed = getattr(st, "paused_elapsed", 0)
+            total_paused_duration = getattr(st, "total_paused_duration", 0.0)
+            excluded = getattr(st, "excluded_ingredients", []) or []
+            reminder, new_put, new_take, beep = timer_tick(
+                plan, start, put, take,
+                is_paused=is_paused,
+                paused_elapsed=paused_elapsed,
+                total_paused_duration=total_paused_duration,
+                excluded_ingredients=excluded,
+            )
             new_st = st.with_last_beeped(new_put, new_take)
             return new_st, reminder, beep
         btn_back_from_timer.click(fn=nav_back_timer_v4, inputs=[app_state], outputs=_nav_outputs)
