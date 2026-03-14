@@ -1,40 +1,1531 @@
 {
   "description": "火锅食材涮煮时间数据库。时间单位：秒。base_seconds=标准涮煮时间，crispy_seconds=脆嫩，tender_seconds=软嫩，soft_seconds=软烂，min_safe_seconds=最低安全时间(必须熟透)。priority=建议下锅优先级，数值越小越先下。",
   "ingredients": [
-    {"id": "feiniurou", "name": "肥牛卷", "aliases": ["肥牛", "雪花肥牛", "M5肥牛", "牛肉卷"], "category": "肉类", "base_seconds": 8, "crispy_seconds": 5, "tender_seconds": 8, "soft_seconds": 15, "min_safe_seconds": 5, "technique": "筷子夹住涮动，变色即可捞起", "warning": "久煮会变老变柴", "priority": 30},
-    {"id": "feiyangrou", "name": "肥羊卷", "aliases": ["羊肉卷", "羊肉片", "精品羊肉"], "category": "肉类", "base_seconds": 10, "crispy_seconds": 6, "tender_seconds": 10, "soft_seconds": 18, "min_safe_seconds": 6, "technique": "涮至变色微卷即可", "warning": "羊肉膻味重，建议配蒜泥", "priority": 32},
-    {"id": "niuroupian", "name": "嫩牛肉", "aliases": ["牛肉片", "吊龙", "匙柄", "牛舌"], "category": "肉类", "base_seconds": 12, "crispy_seconds": 8, "tender_seconds": 12, "soft_seconds": 20, "min_safe_seconds": 8, "technique": "厚切牛肉需多涮几秒", "warning": null, "priority": 35},
-    {"id": "maodu", "name": "毛肚", "aliases": ["黑毛肚", "金毛肚", "鲜毛肚", "牛百叶"], "category": "内脏类", "base_seconds": 15, "crispy_seconds": 10, "tender_seconds": 15, "soft_seconds": 30, "min_safe_seconds": 10, "technique": "七上八下，筷子夹住涮15下", "warning": "超过30秒会变硬如橡皮", "priority": 20},
-    {"id": "yachang", "name": "鸭肠", "aliases": ["脆鸭肠", "鲜鸭肠"], "category": "内脏类", "base_seconds": 12, "crispy_seconds": 8, "tender_seconds": 12, "soft_seconds": 20, "min_safe_seconds": 8, "technique": "快速涮烫，卷曲即捞", "warning": "煮太久会失去脆感", "priority": 22},
-    {"id": "huanghou", "name": "黄喉", "aliases": ["猪黄喉", "牛黄喉"], "category": "内脏类", "base_seconds": 20, "crispy_seconds": 15, "tender_seconds": 20, "soft_seconds": 40, "min_safe_seconds": 15, "technique": "比毛肚稍久，脆脆的口感", "warning": "煮太久变韧", "priority": 25},
-    {"id": "naohua", "name": "脑花", "aliases": ["猪脑花", "猪脑"], "category": "内脏类", "base_seconds": 180, "crispy_seconds": 150, "tender_seconds": 180, "soft_seconds": 240, "min_safe_seconds": 150, "technique": "轻放入锅，不要搅动，慢慢炖煮", "warning": "必须完全煮熟，表面变白凝固", "priority": 10},
-    {"id": "xiahua", "name": "虾滑", "aliases": ["手打虾滑", "鲜虾滑"], "category": "海鲜类", "base_seconds": 90, "crispy_seconds": 60, "tender_seconds": 90, "soft_seconds": 120, "min_safe_seconds": 60, "technique": "勺子挖成球状下锅，浮起即熟", "warning": "生虾滑必须完全煮熟", "priority": 40},
-    {"id": "xianxia", "name": "鲜虾", "aliases": ["基围虾", "大虾", "活虾"], "category": "海鲜类", "base_seconds": 120, "crispy_seconds": 90, "tender_seconds": 120, "soft_seconds": 180, "min_safe_seconds": 90, "technique": "虾身变红弯曲即可", "warning": "必须完全变色才能食用", "priority": 45},
-    {"id": "niurouwan", "name": "牛肉丸", "aliases": ["手打牛丸", "潮汕牛肉丸"], "category": "丸滑类", "base_seconds": 180, "crispy_seconds": 150, "tender_seconds": 180, "soft_seconds": 240, "min_safe_seconds": 150, "technique": "丸子浮起后再煮1-2分钟", "warning": "内部必须热透", "priority": 15},
-    {"id": "yuwan", "name": "鱼丸", "aliases": ["鱼蛋", "墨鱼丸", "包心鱼丸"], "category": "丸滑类", "base_seconds": 150, "crispy_seconds": 120, "tender_seconds": 150, "soft_seconds": 200, "min_safe_seconds": 120, "technique": "浮起后煮1分钟", "warning": null, "priority": 18},
-    {"id": "tudou", "name": "土豆片", "aliases": ["土豆", "马铃薯", "洋芋"], "category": "蔬菜类", "base_seconds": 180, "crispy_seconds": 120, "tender_seconds": 180, "soft_seconds": 300, "min_safe_seconds": 120, "technique": "切薄片更易熟", "warning": "太厚可能外熟内生", "priority": 60},
-    {"id": "oujie", "name": "藕片", "aliases": ["莲藕", "藕"], "category": "蔬菜类", "base_seconds": 180, "crispy_seconds": 120, "tender_seconds": 180, "soft_seconds": 360, "min_safe_seconds": 90, "technique": "脆藕少煮，粉藕多煮", "warning": null, "priority": 55},
-    {"id": "bocai", "name": "菠菜", "aliases": ["菠菜", "青菜"], "category": "蔬菜类", "base_seconds": 30, "crispy_seconds": 20, "tender_seconds": 30, "soft_seconds": 60, "min_safe_seconds": 15, "technique": "烫软即可，保持翠绿", "warning": null, "priority": 80},
-    {"id": "shengcai", "name": "生菜", "aliases": ["莴苣叶", "唛仔菜"], "category": "蔬菜类", "base_seconds": 15, "crispy_seconds": 8, "tender_seconds": 15, "soft_seconds": 30, "min_safe_seconds": 8, "technique": "快烫即起，保持脆嫩", "warning": null, "priority": 85},
-    {"id": "dongguapian", "name": "冬瓜", "aliases": ["冬瓜片"], "category": "蔬菜类", "base_seconds": 240, "crispy_seconds": 180, "tender_seconds": 240, "soft_seconds": 420, "min_safe_seconds": 150, "technique": "煮至半透明，入味即可", "warning": null, "priority": 50},
-    {"id": "laodoufu", "name": "老豆腐", "aliases": ["北豆腐", "卤水豆腐"], "category": "豆制品", "base_seconds": 300, "crispy_seconds": 240, "tender_seconds": 300, "soft_seconds": 480, "min_safe_seconds": 180, "technique": "煮久入味，不易碎", "warning": null, "priority": 25},
-    {"id": "nendoufu", "name": "嫩豆腐", "aliases": ["内酯豆腐", "日本豆腐"], "category": "豆制品", "base_seconds": 120, "crispy_seconds": 90, "tender_seconds": 120, "soft_seconds": 180, "min_safe_seconds": 60, "technique": "轻放轻拿，容易碎", "warning": null, "priority": 70},
-    {"id": "fuzhu", "name": "腐竹", "aliases": ["干腐竹", "鲜腐竹"], "category": "豆制品", "base_seconds": 180, "crispy_seconds": 120, "tender_seconds": 180, "soft_seconds": 300, "min_safe_seconds": 90, "technique": "干腐竹需提前泡软", "warning": null, "priority": 45},
-    {"id": "jinzhengu", "name": "金针菇", "aliases": ["金针菇"], "category": "菌菇类", "base_seconds": 120, "crispy_seconds": 90, "tender_seconds": 120, "soft_seconds": 180, "min_safe_seconds": 90, "technique": "整把下锅，煮软即可", "warning": "难消化，细嚼慢咽", "priority": 50},
-    {"id": "xianggu", "name": "香菇", "aliases": ["冬菇", "花菇"], "category": "菌菇类", "base_seconds": 240, "crispy_seconds": 180, "tender_seconds": 240, "soft_seconds": 360, "min_safe_seconds": 180, "technique": "十字切花，更易入味", "warning": null, "priority": 35},
-    {"id": "pinggu", "name": "平菇", "aliases": ["秀珍菇", "凤尾菇"], "category": "菌菇类", "base_seconds": 150, "crispy_seconds": 120, "tender_seconds": 150, "soft_seconds": 240, "min_safe_seconds": 120, "technique": "撕成小块更入味", "warning": null, "priority": 48},
-    {"id": "fangbianmian", "name": "方便面", "aliases": ["泡面", "火锅面"], "category": "主食类", "base_seconds": 180, "crispy_seconds": 120, "tender_seconds": 180, "soft_seconds": 300, "min_safe_seconds": 120, "technique": "等汤底精华，最后下", "warning": null, "priority": 90},
-    {"id": "niangao", "name": "年糕", "aliases": ["韩式年糕", "宁波年糕"], "category": "主食类", "base_seconds": 240, "crispy_seconds": 180, "tender_seconds": 240, "soft_seconds": 360, "min_safe_seconds": 180, "technique": "煮软糯有嚼劲", "warning": null, "priority": 88},
-    {"id": "yaxue", "name": "鸭血", "aliases": ["血旺", "鸭血旺", "鲜鸭血"], "category": "内脏类", "base_seconds": 300, "crispy_seconds": 180, "tender_seconds": 300, "soft_seconds": 600, "min_safe_seconds": 300, "technique": "煮至无血水、质地紧实", "warning": "必须完全煮熟，中心无血色", "priority": 12},
-    {"id": "malaniurou", "name": "麻辣牛肉", "aliases": ["麻辣牛肉片", "腌牛肉"], "category": "肉类", "base_seconds": 180, "crispy_seconds": 120, "tender_seconds": 180, "soft_seconds": 240, "min_safe_seconds": 120, "technique": "腌渍过可稍久煮，变色熟透即可", "warning": "含辣椒需注意辣度", "priority": 38},
-    {"id": "niushe", "name": "牛舌", "aliases": ["牛舌片", "厚切牛舌"], "category": "肉类", "base_seconds": 30, "crispy_seconds": 20, "tender_seconds": 30, "soft_seconds": 60, "min_safe_seconds": 20, "technique": "薄切涮烫变色即可，厚切需多煮", "warning": "久煮会变韧", "priority": 33},
-    {"id": "qingsun", "name": "青笋", "aliases": ["莴笋", "莴笋片", "莴苣"], "category": "蔬菜类", "base_seconds": 60, "crispy_seconds": 40, "tender_seconds": 60, "soft_seconds": 300, "min_safe_seconds": 40, "technique": "薄片快熟，煮至微软保持脆感", "warning": "煮太久易烂", "priority": 65},
-    {"id": "xiangcai", "name": "香菜", "aliases": ["芫荽", "香荽"], "category": "蔬菜类", "base_seconds": 15, "crispy_seconds": 8, "tender_seconds": 15, "soft_seconds": 30, "min_safe_seconds": 8, "technique": "烫一下即可，保持清香", "warning": null, "priority": 82},
-    {"id": "sunjian", "name": "笋尖", "aliases": ["竹笋尖", "嫩笋", "笋片"], "category": "蔬菜类", "base_seconds": 300, "crispy_seconds": 180, "tender_seconds": 300, "soft_seconds": 480, "min_safe_seconds": 120, "technique": "煮至入味，脆嫩或软糯视喜好", "warning": null, "priority": 52},
-    {"id": "haibaicai", "name": "海白菜", "aliases": ["海带芽", "裙带菜"], "category": "其他", "base_seconds": 300, "crispy_seconds": 120, "tender_seconds": 300, "soft_seconds": 420, "min_safe_seconds": 90, "technique": "泡发后下锅，煮软入味即可", "warning": "碘含量高，甲亢患者少食", "priority": 48},
-    {"id": "haidai", "name": "海带", "aliases": ["海带片", "海带结", "昆布"], "category": "其他", "base_seconds": 300, "crispy_seconds": 180, "tender_seconds": 300, "soft_seconds": 600, "min_safe_seconds": 120, "technique": "干海带需泡发，煮软糯", "warning": "碘含量高，不宜过量", "priority": 42},
-    {"id": "shaofen", "name": "苕粉", "aliases": ["红薯粉", "宽粉", "火锅粉"], "category": "主食类", "base_seconds": 300, "crispy_seconds": 180, "tender_seconds": 300, "soft_seconds": 480, "min_safe_seconds": 180, "technique": "煮至透明软滑，不宜久煮易糊", "warning": "易糊锅，最后下或单独煮", "priority": 86},
-    {"id": "wucanrou", "name": "午餐肉", "aliases": ["火腿午餐肉", "罐头午餐肉"], "category": "丸滑类", "base_seconds": 60, "crispy_seconds": 45, "tender_seconds": 60, "soft_seconds": 120, "min_safe_seconds": 45, "technique": "切片下锅，煮热即可", "warning": "含盐高，不宜多食", "priority": 42},
-    {"id": "anchuandan", "name": "鹌鹑蛋", "aliases": ["鹌鹑蛋"], "category": "其他", "base_seconds": 180, "crispy_seconds": 120, "tender_seconds": 180, "soft_seconds": 300, "min_safe_seconds": 120, "technique": "带壳或剥壳下锅，煮透心", "warning": "必须煮熟透", "priority": 35}
+    {
+      "id": "feiniurou",
+      "name": "肥牛卷",
+      "aliases": [
+        "肥牛",
+        "雪花肥牛",
+        "M5肥牛",
+        "牛肉卷"
+      ],
+      "category": "肉类",
+      "base_seconds": 8,
+      "crispy_seconds": 5,
+      "tender_seconds": 8,
+      "soft_seconds": 15,
+      "min_safe_seconds": 5,
+      "technique": "筷子夹住涮动，变色即可捞起",
+      "warning": "久煮会变老变柴",
+      "priority": 30
+    },
+    {
+      "id": "feiyangrou",
+      "name": "肥羊卷",
+      "aliases": [
+        "羊肉卷",
+        "羊肉片",
+        "精品羊肉"
+      ],
+      "category": "肉类",
+      "base_seconds": 10,
+      "crispy_seconds": 6,
+      "tender_seconds": 10,
+      "soft_seconds": 18,
+      "min_safe_seconds": 6,
+      "technique": "涮至变色微卷即可",
+      "warning": "羊肉膻味重，建议配蒜泥",
+      "priority": 32
+    },
+    {
+      "id": "niuroupian",
+      "name": "嫩牛肉",
+      "aliases": [
+        "牛肉片",
+        "吊龙",
+        "匙柄",
+        "牛舌"
+      ],
+      "category": "肉类",
+      "base_seconds": 12,
+      "crispy_seconds": 8,
+      "tender_seconds": 12,
+      "soft_seconds": 20,
+      "min_safe_seconds": 8,
+      "technique": "厚切牛肉需多涮几秒",
+      "warning": null,
+      "priority": 35
+    },
+    {
+      "id": "maodu",
+      "name": "毛肚",
+      "aliases": [
+        "黑毛肚",
+        "金毛肚",
+        "鲜毛肚",
+        "牛百叶"
+      ],
+      "category": "内脏类",
+      "base_seconds": 15,
+      "crispy_seconds": 10,
+      "tender_seconds": 15,
+      "soft_seconds": 30,
+      "min_safe_seconds": 10,
+      "technique": "七上八下，筷子夹住涮15下",
+      "warning": "超过30秒会变硬如橡皮",
+      "priority": 20
+    },
+    {
+      "id": "yachang",
+      "name": "鸭肠",
+      "aliases": [
+        "脆鸭肠",
+        "鲜鸭肠"
+      ],
+      "category": "内脏类",
+      "base_seconds": 12,
+      "crispy_seconds": 8,
+      "tender_seconds": 12,
+      "soft_seconds": 20,
+      "min_safe_seconds": 8,
+      "technique": "快速涮烫，卷曲即捞",
+      "warning": "煮太久会失去脆感",
+      "priority": 22
+    },
+    {
+      "id": "huanghou",
+      "name": "黄喉",
+      "aliases": [
+        "猪黄喉",
+        "牛黄喉"
+      ],
+      "category": "内脏类",
+      "base_seconds": 20,
+      "crispy_seconds": 15,
+      "tender_seconds": 20,
+      "soft_seconds": 40,
+      "min_safe_seconds": 15,
+      "technique": "比毛肚稍久，脆脆的口感",
+      "warning": "煮太久变韧",
+      "priority": 25
+    },
+    {
+      "id": "naohua",
+      "name": "脑花",
+      "aliases": [
+        "猪脑花",
+        "猪脑"
+      ],
+      "category": "内脏类",
+      "base_seconds": 180,
+      "crispy_seconds": 150,
+      "tender_seconds": 180,
+      "soft_seconds": 240,
+      "min_safe_seconds": 150,
+      "technique": "轻放入锅，不要搅动，慢慢炖煮",
+      "warning": "必须完全煮熟，表面变白凝固",
+      "priority": 10
+    },
+    {
+      "id": "xiahua",
+      "name": "虾滑",
+      "aliases": [
+        "手打虾滑",
+        "鲜虾滑"
+      ],
+      "category": "海鲜类",
+      "base_seconds": 90,
+      "crispy_seconds": 60,
+      "tender_seconds": 90,
+      "soft_seconds": 120,
+      "min_safe_seconds": 60,
+      "technique": "勺子挖成球状下锅，浮起即熟",
+      "warning": "生虾滑必须完全煮熟",
+      "priority": 40
+    },
+    {
+      "id": "xianxia",
+      "name": "鲜虾",
+      "aliases": [
+        "基围虾",
+        "大虾",
+        "活虾"
+      ],
+      "category": "海鲜类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 180,
+      "min_safe_seconds": 90,
+      "technique": "虾身变红弯曲即可",
+      "warning": "必须完全变色才能食用",
+      "priority": 45
+    },
+    {
+      "id": "niurouwan",
+      "name": "牛肉丸",
+      "aliases": [
+        "手打牛丸",
+        "潮汕牛肉丸"
+      ],
+      "category": "丸滑类",
+      "base_seconds": 180,
+      "crispy_seconds": 150,
+      "tender_seconds": 180,
+      "soft_seconds": 240,
+      "min_safe_seconds": 150,
+      "technique": "丸子浮起后再煮1-2分钟",
+      "warning": "内部必须热透",
+      "priority": 15
+    },
+    {
+      "id": "yuwan",
+      "name": "鱼丸",
+      "aliases": [
+        "鱼蛋",
+        "墨鱼丸",
+        "包心鱼丸"
+      ],
+      "category": "丸滑类",
+      "base_seconds": 150,
+      "crispy_seconds": 120,
+      "tender_seconds": 150,
+      "soft_seconds": 200,
+      "min_safe_seconds": 120,
+      "technique": "浮起后煮1分钟",
+      "warning": null,
+      "priority": 18
+    },
+    {
+      "id": "tudou",
+      "name": "土豆片",
+      "aliases": [
+        "土豆",
+        "马铃薯",
+        "洋芋"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 300,
+      "min_safe_seconds": 120,
+      "technique": "切薄片更易熟",
+      "warning": "太厚可能外熟内生",
+      "priority": 60
+    },
+    {
+      "id": "oujie",
+      "name": "藕片",
+      "aliases": [
+        "莲藕",
+        "藕"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 360,
+      "min_safe_seconds": 90,
+      "technique": "脆藕少煮，粉藕多煮",
+      "warning": null,
+      "priority": 55
+    },
+    {
+      "id": "bocai",
+      "name": "菠菜",
+      "aliases": [
+        "菠菜",
+        "青菜"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 30,
+      "crispy_seconds": 20,
+      "tender_seconds": 30,
+      "soft_seconds": 60,
+      "min_safe_seconds": 15,
+      "technique": "烫软即可，保持翠绿",
+      "warning": null,
+      "priority": 80
+    },
+    {
+      "id": "shengcai",
+      "name": "生菜",
+      "aliases": [
+        "莴苣叶",
+        "唛仔菜"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 15,
+      "crispy_seconds": 8,
+      "tender_seconds": 15,
+      "soft_seconds": 30,
+      "min_safe_seconds": 8,
+      "technique": "快烫即起，保持脆嫩",
+      "warning": null,
+      "priority": 85
+    },
+    {
+      "id": "dongguapian",
+      "name": "冬瓜",
+      "aliases": [
+        "冬瓜片"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 240,
+      "crispy_seconds": 180,
+      "tender_seconds": 240,
+      "soft_seconds": 420,
+      "min_safe_seconds": 150,
+      "technique": "煮至半透明，入味即可",
+      "warning": null,
+      "priority": 50
+    },
+    {
+      "id": "laodoufu",
+      "name": "老豆腐",
+      "aliases": [
+        "北豆腐",
+        "卤水豆腐"
+      ],
+      "category": "豆制品",
+      "base_seconds": 300,
+      "crispy_seconds": 240,
+      "tender_seconds": 300,
+      "soft_seconds": 480,
+      "min_safe_seconds": 180,
+      "technique": "煮久入味，不易碎",
+      "warning": null,
+      "priority": 25
+    },
+    {
+      "id": "nendoufu",
+      "name": "嫩豆腐",
+      "aliases": [
+        "内酯豆腐",
+        "日本豆腐"
+      ],
+      "category": "豆制品",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 180,
+      "min_safe_seconds": 60,
+      "technique": "轻放轻拿，容易碎",
+      "warning": null,
+      "priority": 70
+    },
+    {
+      "id": "fuzhu",
+      "name": "腐竹",
+      "aliases": [
+        "干腐竹",
+        "鲜腐竹"
+      ],
+      "category": "豆制品",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 300,
+      "min_safe_seconds": 90,
+      "technique": "干腐竹需提前泡软",
+      "warning": null,
+      "priority": 45
+    },
+    {
+      "id": "jinzhengu",
+      "name": "金针菇",
+      "aliases": [
+        "金针菇"
+      ],
+      "category": "菌菇类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 180,
+      "min_safe_seconds": 90,
+      "technique": "整把下锅，煮软即可",
+      "warning": "难消化，细嚼慢咽",
+      "priority": 50
+    },
+    {
+      "id": "xianggu",
+      "name": "香菇",
+      "aliases": [
+        "冬菇",
+        "花菇"
+      ],
+      "category": "菌菇类",
+      "base_seconds": 240,
+      "crispy_seconds": 180,
+      "tender_seconds": 240,
+      "soft_seconds": 360,
+      "min_safe_seconds": 180,
+      "technique": "十字切花，更易入味",
+      "warning": null,
+      "priority": 35
+    },
+    {
+      "id": "pinggu",
+      "name": "平菇",
+      "aliases": [
+        "秀珍菇",
+        "凤尾菇"
+      ],
+      "category": "菌菇类",
+      "base_seconds": 150,
+      "crispy_seconds": 120,
+      "tender_seconds": 150,
+      "soft_seconds": 240,
+      "min_safe_seconds": 120,
+      "technique": "撕成小块更入味",
+      "warning": null,
+      "priority": 48
+    },
+    {
+      "id": "fangbianmian",
+      "name": "方便面",
+      "aliases": [
+        "泡面",
+        "火锅面"
+      ],
+      "category": "主食类",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 300,
+      "min_safe_seconds": 120,
+      "technique": "等汤底精华，最后下",
+      "warning": null,
+      "priority": 90
+    },
+    {
+      "id": "niangao",
+      "name": "年糕",
+      "aliases": [
+        "韩式年糕",
+        "宁波年糕"
+      ],
+      "category": "主食类",
+      "base_seconds": 240,
+      "crispy_seconds": 180,
+      "tender_seconds": 240,
+      "soft_seconds": 360,
+      "min_safe_seconds": 180,
+      "technique": "煮软糯有嚼劲",
+      "warning": null,
+      "priority": 88
+    },
+    {
+      "id": "yaxue",
+      "name": "鸭血",
+      "aliases": [
+        "血旺",
+        "鸭血旺",
+        "鲜鸭血"
+      ],
+      "category": "内脏类",
+      "base_seconds": 300,
+      "crispy_seconds": 180,
+      "tender_seconds": 300,
+      "soft_seconds": 600,
+      "min_safe_seconds": 300,
+      "technique": "煮至无血水、质地紧实",
+      "warning": "必须完全煮熟，中心无血色",
+      "priority": 12
+    },
+    {
+      "id": "malaniurou",
+      "name": "麻辣牛肉",
+      "aliases": [
+        "麻辣牛肉片",
+        "腌牛肉"
+      ],
+      "category": "肉类",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 240,
+      "min_safe_seconds": 120,
+      "technique": "腌渍过可稍久煮，变色熟透即可",
+      "warning": "含辣椒需注意辣度",
+      "priority": 38
+    },
+    {
+      "id": "niushe",
+      "name": "牛舌",
+      "aliases": [
+        "牛舌片",
+        "厚切牛舌"
+      ],
+      "category": "肉类",
+      "base_seconds": 30,
+      "crispy_seconds": 20,
+      "tender_seconds": 30,
+      "soft_seconds": 60,
+      "min_safe_seconds": 20,
+      "technique": "薄切涮烫变色即可，厚切需多煮",
+      "warning": "久煮会变韧",
+      "priority": 33
+    },
+    {
+      "id": "qingsun",
+      "name": "青笋",
+      "aliases": [
+        "莴笋",
+        "莴笋片",
+        "莴苣"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 60,
+      "crispy_seconds": 40,
+      "tender_seconds": 60,
+      "soft_seconds": 300,
+      "min_safe_seconds": 40,
+      "technique": "薄片快熟，煮至微软保持脆感",
+      "warning": "煮太久易烂",
+      "priority": 65
+    },
+    {
+      "id": "xiangcai",
+      "name": "香菜",
+      "aliases": [
+        "芫荽",
+        "香荽"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 15,
+      "crispy_seconds": 8,
+      "tender_seconds": 15,
+      "soft_seconds": 30,
+      "min_safe_seconds": 8,
+      "technique": "烫一下即可，保持清香",
+      "warning": null,
+      "priority": 82
+    },
+    {
+      "id": "sunjian",
+      "name": "笋尖",
+      "aliases": [
+        "竹笋尖",
+        "嫩笋",
+        "笋片"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 300,
+      "crispy_seconds": 180,
+      "tender_seconds": 300,
+      "soft_seconds": 480,
+      "min_safe_seconds": 120,
+      "technique": "煮至入味，脆嫩或软糯视喜好",
+      "warning": null,
+      "priority": 52
+    },
+    {
+      "id": "haibaicai",
+      "name": "海白菜",
+      "aliases": [
+        "海带芽",
+        "裙带菜"
+      ],
+      "category": "其他",
+      "base_seconds": 300,
+      "crispy_seconds": 120,
+      "tender_seconds": 300,
+      "soft_seconds": 420,
+      "min_safe_seconds": 90,
+      "technique": "泡发后下锅，煮软入味即可",
+      "warning": "碘含量高，甲亢患者少食",
+      "priority": 48
+    },
+    {
+      "id": "haidai",
+      "name": "海带",
+      "aliases": [
+        "海带片",
+        "海带结",
+        "昆布"
+      ],
+      "category": "其他",
+      "base_seconds": 300,
+      "crispy_seconds": 180,
+      "tender_seconds": 300,
+      "soft_seconds": 600,
+      "min_safe_seconds": 120,
+      "technique": "干海带需泡发，煮软糯",
+      "warning": "碘含量高，不宜过量",
+      "priority": 42
+    },
+    {
+      "id": "shaofen",
+      "name": "苕粉",
+      "aliases": [
+        "红薯粉",
+        "宽粉",
+        "火锅粉"
+      ],
+      "category": "主食类",
+      "base_seconds": 300,
+      "crispy_seconds": 180,
+      "tender_seconds": 300,
+      "soft_seconds": 480,
+      "min_safe_seconds": 180,
+      "technique": "煮至透明软滑，不宜久煮易糊",
+      "warning": "易糊锅，最后下或单独煮",
+      "priority": 86
+    },
+    {
+      "id": "wucanrou",
+      "name": "午餐肉",
+      "aliases": [
+        "火腿午餐肉",
+        "罐头午餐肉"
+      ],
+      "category": "丸滑类",
+      "base_seconds": 60,
+      "crispy_seconds": 45,
+      "tender_seconds": 60,
+      "soft_seconds": 120,
+      "min_safe_seconds": 45,
+      "technique": "切片下锅，煮热即可",
+      "warning": "含盐高，不宜多食",
+      "priority": 42
+    },
+    {
+      "id": "anchuandan",
+      "name": "鹌鹑蛋",
+      "aliases": [
+        "鹌鹑蛋"
+      ],
+      "category": "其他",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 300,
+      "min_safe_seconds": 120,
+      "technique": "带壳或剥壳下锅，煮透心",
+      "warning": "必须煮熟透",
+      "priority": 35
+    },
+    {
+      "id": "zhuwuhua",
+      "name": "猪五花",
+      "aliases": [
+        "五花肉",
+        "猪五花肉",
+        "三层肉"
+      ],
+      "category": "肉类",
+      "base_seconds": 45,
+      "crispy_seconds": 30,
+      "tender_seconds": 45,
+      "soft_seconds": 90,
+      "min_safe_seconds": 30,
+      "technique": "薄切涮至变色卷曲",
+      "warning": "肥肉多，不宜久煮易化",
+      "priority": 36
+    },
+    {
+      "id": "meihuaron",
+      "name": "梅花肉",
+      "aliases": [
+        "猪梅花",
+        "上肩肉",
+        "胛心肉"
+      ],
+      "category": "肉类",
+      "base_seconds": 25,
+      "crispy_seconds": 15,
+      "tender_seconds": 25,
+      "soft_seconds": 50,
+      "min_safe_seconds": 15,
+      "technique": "涮至变色即可，嫩而不柴",
+      "warning": null,
+      "priority": 34
+    },
+    {
+      "id": "zhuliji",
+      "name": "猪里脊",
+      "aliases": [
+        "里脊肉",
+        "通脊"
+      ],
+      "category": "肉类",
+      "base_seconds": 20,
+      "crispy_seconds": 12,
+      "tender_seconds": 20,
+      "soft_seconds": 40,
+      "min_safe_seconds": 12,
+      "technique": "薄切快涮，变色即捞",
+      "warning": null,
+      "priority": 37
+    },
+    {
+      "id": "jixiongrou",
+      "name": "鸡胸肉",
+      "aliases": [
+        "鸡胸",
+        "鸡柳"
+      ],
+      "category": "肉类",
+      "base_seconds": 90,
+      "crispy_seconds": 60,
+      "tender_seconds": 90,
+      "soft_seconds": 150,
+      "min_safe_seconds": 60,
+      "technique": "切片薄一点，煮至全白",
+      "warning": "久煮易柴",
+      "priority": 50
+    },
+    {
+      "id": "jituirou",
+      "name": "鸡腿肉",
+      "aliases": [
+        "鸡腿",
+        "去骨鸡腿"
+      ],
+      "category": "肉类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 180,
+      "min_safe_seconds": 90,
+      "technique": "切块或片，煮至无血水",
+      "warning": null,
+      "priority": 48
+    },
+    {
+      "id": "wujijuan",
+      "name": "乌鸡卷",
+      "aliases": [
+        "乌鸡肉卷",
+        "乌鸡片"
+      ],
+      "category": "肉类",
+      "base_seconds": 15,
+      "crispy_seconds": 10,
+      "tender_seconds": 15,
+      "soft_seconds": 30,
+      "min_safe_seconds": 10,
+      "technique": "涮至变色即可",
+      "warning": null,
+      "priority": 40
+    },
+    {
+      "id": "zhujingrou",
+      "name": "猪颈肉",
+      "aliases": [
+        "松板肉",
+        "雪花肉"
+      ],
+      "category": "肉类",
+      "base_seconds": 25,
+      "crispy_seconds": 15,
+      "tender_seconds": 25,
+      "soft_seconds": 50,
+      "min_safe_seconds": 15,
+      "technique": "涮至变色，口感弹嫩",
+      "warning": null,
+      "priority": 35
+    },
+    {
+      "id": "niudu",
+      "name": "牛肚",
+      "aliases": [
+        "牛肚片",
+        "金钱肚",
+        "蜂窝肚"
+      ],
+      "category": "内脏类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 240,
+      "min_safe_seconds": 90,
+      "technique": "厚切需多煮，煮至软糯",
+      "warning": "未煮透难嚼",
+      "priority": 18
+    },
+    {
+      "id": "zhugan",
+      "name": "猪肝",
+      "aliases": [
+        "鲜猪肝",
+        "肝片"
+      ],
+      "category": "内脏类",
+      "base_seconds": 45,
+      "crispy_seconds": 30,
+      "tender_seconds": 45,
+      "soft_seconds": 90,
+      "min_safe_seconds": 30,
+      "technique": "薄切快涮，变色即捞，保持嫩滑",
+      "warning": "煮老会发硬；高胆固醇少食",
+      "priority": 38
+    },
+    {
+      "id": "yaohua",
+      "name": "腰花",
+      "aliases": [
+        "猪腰",
+        "腰片",
+        "爆炒腰花"
+      ],
+      "category": "内脏类",
+      "base_seconds": 30,
+      "crispy_seconds": 20,
+      "tender_seconds": 30,
+      "soft_seconds": 60,
+      "min_safe_seconds": 20,
+      "technique": "改花刀涮烫，卷曲即熟",
+      "warning": "去净腰臊，煮老会韧",
+      "priority": 28
+    },
+    {
+      "id": "jizhen",
+      "name": "鸡胗",
+      "aliases": [
+        "鸡肫",
+        "胗子"
+      ],
+      "category": "内脏类",
+      "base_seconds": 60,
+      "crispy_seconds": 45,
+      "tender_seconds": 60,
+      "soft_seconds": 120,
+      "min_safe_seconds": 45,
+      "technique": "切片或改花，煮至脆弹",
+      "warning": null,
+      "priority": 32
+    },
+    {
+      "id": "yazhen",
+      "name": "鸭胗",
+      "aliases": [
+        "鸭肫"
+      ],
+      "category": "内脏类",
+      "base_seconds": 60,
+      "crispy_seconds": 45,
+      "tender_seconds": 60,
+      "soft_seconds": 120,
+      "min_safe_seconds": 45,
+      "technique": "切片涮至脆嫩",
+      "warning": null,
+      "priority": 33
+    },
+    {
+      "id": "echang",
+      "name": "鹅肠",
+      "aliases": [
+        "鲜鹅肠",
+        "鹅肠"
+      ],
+      "category": "内脏类",
+      "base_seconds": 15,
+      "crispy_seconds": 10,
+      "tender_seconds": 15,
+      "soft_seconds": 25,
+      "min_safe_seconds": 10,
+      "technique": "七上八下，卷曲即捞",
+      "warning": "久煮变韧",
+      "priority": 21
+    },
+    {
+      "id": "yupian",
+      "name": "鱼片",
+      "aliases": [
+        "生鱼片",
+        "黑鱼片",
+        "草鱼片",
+        "龙利鱼片",
+        "巴沙鱼片"
+      ],
+      "category": "海鲜类",
+      "base_seconds": 30,
+      "crispy_seconds": 20,
+      "tender_seconds": 30,
+      "soft_seconds": 60,
+      "min_safe_seconds": 20,
+      "technique": "薄片涮至变白卷曲",
+      "warning": "必须熟透防寄生虫",
+      "priority": 42
+    },
+    {
+      "id": "youyu",
+      "name": "鱿鱼",
+      "aliases": [
+        "鲜鱿鱼",
+        "鱿鱼片",
+        "鱿鱼花"
+      ],
+      "category": "海鲜类",
+      "base_seconds": 45,
+      "crispy_seconds": 30,
+      "tender_seconds": 45,
+      "soft_seconds": 90,
+      "min_safe_seconds": 30,
+      "technique": "改花刀涮至卷曲变白",
+      "warning": "煮老会韧",
+      "priority": 44
+    },
+    {
+      "id": "moyu",
+      "name": "墨鱼",
+      "aliases": [
+        "墨鱼片",
+        "乌贼",
+        "花枝"
+      ],
+      "category": "海鲜类",
+      "base_seconds": 50,
+      "crispy_seconds": 35,
+      "tender_seconds": 50,
+      "soft_seconds": 100,
+      "min_safe_seconds": 35,
+      "technique": "涮至变白卷曲",
+      "warning": null,
+      "priority": 43
+    },
+    {
+      "id": "xiebang",
+      "name": "蟹棒",
+      "aliases": [
+        "蟹柳",
+        "模拟蟹肉"
+      ],
+      "category": "海鲜类",
+      "base_seconds": 60,
+      "crispy_seconds": 45,
+      "tender_seconds": 60,
+      "soft_seconds": 120,
+      "min_safe_seconds": 45,
+      "technique": "煮热即可，久煮易散",
+      "warning": null,
+      "priority": 46
+    },
+    {
+      "id": "shanbei",
+      "name": "扇贝",
+      "aliases": [
+        "鲜贝",
+        "带子",
+        "扇贝肉"
+      ],
+      "category": "海鲜类",
+      "base_seconds": 90,
+      "crispy_seconds": 60,
+      "tender_seconds": 90,
+      "soft_seconds": 150,
+      "min_safe_seconds": 60,
+      "technique": "煮至贝肉变白不透明",
+      "warning": "必须熟透",
+      "priority": 47
+    },
+    {
+      "id": "huajia",
+      "name": "花甲",
+      "aliases": [
+        "花蛤",
+        "蛤蜊",
+        "文蛤"
+      ],
+      "category": "海鲜类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 180,
+      "min_safe_seconds": 90,
+      "technique": "开口即熟，吐沙干净再下锅",
+      "warning": "必须开口且熟透",
+      "priority": 52
+    },
+    {
+      "id": "chengzi",
+      "name": "蛏子",
+      "aliases": [
+        "蛏子皇",
+        "竹蛏"
+      ],
+      "category": "海鲜类",
+      "base_seconds": 90,
+      "crispy_seconds": 60,
+      "tender_seconds": 90,
+      "soft_seconds": 150,
+      "min_safe_seconds": 60,
+      "technique": "开口即熟，吐沙后下锅",
+      "warning": null,
+      "priority": 51
+    },
+    {
+      "id": "xiawan",
+      "name": "虾丸",
+      "aliases": [
+        "鲜虾丸",
+        "龙虾丸"
+      ],
+      "category": "丸滑类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 180,
+      "min_safe_seconds": 90,
+      "technique": "浮起后再煮约1分钟",
+      "warning": "含虾过敏者注意",
+      "priority": 20
+    },
+    {
+      "id": "yudoufu",
+      "name": "鱼豆腐",
+      "aliases": [
+        "鱼饼",
+        "鱼板"
+      ],
+      "category": "丸滑类",
+      "base_seconds": 90,
+      "crispy_seconds": 60,
+      "tender_seconds": 90,
+      "soft_seconds": 150,
+      "min_safe_seconds": 60,
+      "technique": "煮至膨胀浮起",
+      "warning": null,
+      "priority": 22
+    },
+    {
+      "id": "saniaoniuwan",
+      "name": "撒尿牛丸",
+      "aliases": [
+        "爆浆牛丸",
+        "潮汕牛丸"
+      ],
+      "category": "丸滑类",
+      "base_seconds": 180,
+      "crispy_seconds": 150,
+      "tender_seconds": 180,
+      "soft_seconds": 240,
+      "min_safe_seconds": 150,
+      "technique": "浮起后多煮1-2分钟，小心烫口",
+      "warning": "内馅烫，咬开注意",
+      "priority": 16
+    },
+    {
+      "id": "moyuwan",
+      "name": "墨鱼丸",
+      "aliases": [
+        "墨鱼球",
+        "花枝丸"
+      ],
+      "category": "丸滑类",
+      "base_seconds": 150,
+      "crispy_seconds": 120,
+      "tender_seconds": 150,
+      "soft_seconds": 200,
+      "min_safe_seconds": 120,
+      "technique": "浮起后煮约1分钟",
+      "warning": null,
+      "priority": 19
+    },
+    {
+      "id": "yuzifudai",
+      "name": "鱼籽福袋",
+      "aliases": [
+        "福袋",
+        "豆皮福袋"
+      ],
+      "category": "丸滑类",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 240,
+      "min_safe_seconds": 120,
+      "technique": "煮至豆皮软、内馅热透",
+      "warning": null,
+      "priority": 24
+    },
+    {
+      "id": "zhishiwan",
+      "name": "芝士丸",
+      "aliases": [
+        "芝士心鱼丸",
+        "拉丝丸"
+      ],
+      "category": "丸滑类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 180,
+      "min_safe_seconds": 90,
+      "technique": "浮起后煮1分钟，小心爆浆烫口",
+      "warning": null,
+      "priority": 26
+    },
+    {
+      "id": "wawacai",
+      "name": "娃娃菜",
+      "aliases": [
+        "迷你白菜",
+        "袖珍白菜"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 90,
+      "crispy_seconds": 60,
+      "tender_seconds": 90,
+      "soft_seconds": 180,
+      "min_safe_seconds": 45,
+      "technique": "对半或整棵，煮软入味",
+      "warning": null,
+      "priority": 62
+    },
+    {
+      "id": "youmaicai",
+      "name": "油麦菜",
+      "aliases": [
+        "莜麦菜",
+        "凤尾"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 20,
+      "crispy_seconds": 12,
+      "tender_seconds": 20,
+      "soft_seconds": 45,
+      "min_safe_seconds": 12,
+      "technique": "烫软即可，保持翠绿",
+      "warning": null,
+      "priority": 78
+    },
+    {
+      "id": "tonghao",
+      "name": "茼蒿",
+      "aliases": [
+        "皇帝菜",
+        "蓬蒿"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 30,
+      "crispy_seconds": 20,
+      "tender_seconds": 30,
+      "soft_seconds": 60,
+      "min_safe_seconds": 15,
+      "technique": "烫软即起，香味浓",
+      "warning": null,
+      "priority": 75
+    },
+    {
+      "id": "doumiao",
+      "name": "豆苗",
+      "aliases": [
+        "豌豆苗",
+        "豌豆尖"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 15,
+      "crispy_seconds": 8,
+      "tender_seconds": 15,
+      "soft_seconds": 30,
+      "min_safe_seconds": 8,
+      "technique": "快烫即起，保持嫩绿",
+      "warning": null,
+      "priority": 84
+    },
+    {
+      "id": "luobo",
+      "name": "萝卜",
+      "aliases": [
+        "白萝卜",
+        "水萝卜",
+        "萝卜块"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 300,
+      "crispy_seconds": 180,
+      "tender_seconds": 300,
+      "soft_seconds": 480,
+      "min_safe_seconds": 150,
+      "technique": "切块或厚片，煮至透明入味",
+      "warning": null,
+      "priority": 45
+    },
+    {
+      "id": "yumi",
+      "name": "玉米",
+      "aliases": [
+        "甜玉米",
+        "玉米段",
+        "糯玉米"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 300,
+      "crispy_seconds": 240,
+      "tender_seconds": 300,
+      "soft_seconds": 480,
+      "min_safe_seconds": 180,
+      "technique": "切段下锅，煮至软糯",
+      "warning": null,
+      "priority": 55
+    },
+    {
+      "id": "nangua",
+      "name": "南瓜",
+      "aliases": [
+        "南瓜块",
+        "贝贝南瓜"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 300,
+      "crispy_seconds": 180,
+      "tender_seconds": 300,
+      "soft_seconds": 480,
+      "min_safe_seconds": 150,
+      "technique": "煮至软糯，甜味析出",
+      "warning": null,
+      "priority": 58
+    },
+    {
+      "id": "shanyao",
+      "name": "山药",
+      "aliases": [
+        "淮山",
+        "铁棍山药",
+        "山药片"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 300,
+      "min_safe_seconds": 90,
+      "technique": "切薄片或段，煮至微软",
+      "warning": null,
+      "priority": 54
+    },
+    {
+      "id": "muer",
+      "name": "木耳",
+      "aliases": [
+        "黑木耳",
+        "云耳",
+        "秋耳"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 200,
+      "min_safe_seconds": 60,
+      "technique": "泡发后下锅，煮至软滑",
+      "warning": null,
+      "priority": 53
+    },
+    {
+      "id": "huanggua",
+      "name": "黄瓜",
+      "aliases": [
+        "青瓜",
+        "黄瓜片"
+      ],
+      "category": "蔬菜类",
+      "base_seconds": 60,
+      "crispy_seconds": 30,
+      "tender_seconds": 60,
+      "soft_seconds": 120,
+      "min_safe_seconds": 30,
+      "technique": "薄片快涮，保持脆爽",
+      "warning": null,
+      "priority": 72
+    },
+    {
+      "id": "youdoupi",
+      "name": "油豆皮",
+      "aliases": [
+        "豆皮",
+        "腐皮",
+        "响铃卷"
+      ],
+      "category": "豆制品",
+      "base_seconds": 30,
+      "crispy_seconds": 15,
+      "tender_seconds": 30,
+      "soft_seconds": 60,
+      "min_safe_seconds": 15,
+      "technique": "涮几秒即软，不宜久煮易烂",
+      "warning": null,
+      "priority": 68
+    },
+    {
+      "id": "dongdoufu",
+      "name": "冻豆腐",
+      "aliases": [
+        "冻豆腐块",
+        "蜂窝豆腐"
+      ],
+      "category": "豆制品",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 300,
+      "min_safe_seconds": 90,
+      "technique": "煮至吸饱汤汁，内部热透",
+      "warning": null,
+      "priority": 38
+    },
+    {
+      "id": "qianzhang",
+      "name": "千张",
+      "aliases": [
+        "百叶",
+        "豆腐皮",
+        "干豆腐"
+      ],
+      "category": "豆制品",
+      "base_seconds": 90,
+      "crispy_seconds": 60,
+      "tender_seconds": 90,
+      "soft_seconds": 180,
+      "min_safe_seconds": 60,
+      "technique": "切条或打结，煮至入味",
+      "warning": null,
+      "priority": 52
+    },
+    {
+      "id": "doufupao",
+      "name": "豆腐泡",
+      "aliases": [
+        "油豆腐",
+        "豆泡"
+      ],
+      "category": "豆制品",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 200,
+      "min_safe_seconds": 60,
+      "technique": "煮至吸汁变软",
+      "warning": null,
+      "priority": 56
+    },
+    {
+      "id": "xingbaogu",
+      "name": "杏鲍菇",
+      "aliases": [
+        "杏鲍菇片",
+        "鸡腿菇"
+      ],
+      "category": "菌菇类",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 300,
+      "min_safe_seconds": 90,
+      "technique": "切厚片，煮至软弹",
+      "warning": null,
+      "priority": 46
+    },
+    {
+      "id": "baiyugu",
+      "name": "白玉菇",
+      "aliases": [
+        "白玉菇",
+        "蟹味菇"
+      ],
+      "category": "菌菇类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 180,
+      "min_safe_seconds": 90,
+      "technique": "整棵或切根，煮软即可",
+      "warning": null,
+      "priority": 52
+    },
+    {
+      "id": "chashugu",
+      "name": "茶树菇",
+      "aliases": [
+        "茶薪菇",
+        "柳松菇"
+      ],
+      "category": "菌菇类",
+      "base_seconds": 240,
+      "crispy_seconds": 180,
+      "tender_seconds": 240,
+      "soft_seconds": 360,
+      "min_safe_seconds": 180,
+      "technique": "泡发或鲜品，煮至软韧",
+      "warning": null,
+      "priority": 42
+    },
+    {
+      "id": "koumo",
+      "name": "口蘑",
+      "aliases": [
+        "白蘑菇",
+        "双孢菇"
+      ],
+      "category": "菌菇类",
+      "base_seconds": 150,
+      "crispy_seconds": 120,
+      "tender_seconds": 150,
+      "soft_seconds": 240,
+      "min_safe_seconds": 90,
+      "technique": "整颗或对半，煮至入味",
+      "warning": null,
+      "priority": 50
+    },
+    {
+      "id": "longkoufensi",
+      "name": "龙口粉丝",
+      "aliases": [
+        "绿豆粉丝",
+        "细粉丝",
+        "粉丝"
+      ],
+      "category": "主食类",
+      "base_seconds": 120,
+      "crispy_seconds": 90,
+      "tender_seconds": 120,
+      "soft_seconds": 200,
+      "min_safe_seconds": 60,
+      "technique": "泡软后下锅，煮至透明软滑",
+      "warning": "易糊，最后下",
+      "priority": 87
+    },
+    {
+      "id": "wudongmian",
+      "name": "乌冬面",
+      "aliases": [
+        "乌冬",
+        "日本乌冬"
+      ],
+      "category": "主食类",
+      "base_seconds": 180,
+      "crispy_seconds": 120,
+      "tender_seconds": 180,
+      "soft_seconds": 300,
+      "min_safe_seconds": 120,
+      "technique": "煮至软滑有嚼劲",
+      "warning": null,
+      "priority": 89
+    },
+    {
+      "id": "hefen",
+      "name": "河粉",
+      "aliases": [
+        "沙河粉",
+        "粿条"
+      ],
+      "category": "主食类",
+      "base_seconds": 60,
+      "crispy_seconds": 45,
+      "tender_seconds": 60,
+      "soft_seconds": 120,
+      "min_safe_seconds": 45,
+      "technique": "涮至软滑，不宜久煮易断",
+      "warning": null,
+      "priority": 85
+    },
+    {
+      "id": "jiaozi",
+      "name": "饺子",
+      "aliases": [
+        "水饺",
+        "火锅饺"
+      ],
+      "category": "主食类",
+      "base_seconds": 300,
+      "crispy_seconds": 240,
+      "tender_seconds": 300,
+      "soft_seconds": 420,
+      "min_safe_seconds": 240,
+      "technique": "浮起后煮3-5分钟，馅熟透",
+      "warning": "冷冻饺需多煮",
+      "priority": 92
+    },
+    {
+      "id": "chaoshou",
+      "name": "抄手",
+      "aliases": [
+        "馄饨",
+        "云吞",
+        "扁食"
+      ],
+      "category": "主食类",
+      "base_seconds": 240,
+      "crispy_seconds": 180,
+      "tender_seconds": 240,
+      "soft_seconds": 360,
+      "min_safe_seconds": 180,
+      "technique": "皮透明、馅熟透即可",
+      "warning": null,
+      "priority": 91
+    },
+    {
+      "id": "pidan",
+      "name": "皮蛋",
+      "aliases": [
+        "松花蛋",
+        "变蛋"
+      ],
+      "category": "其他",
+      "base_seconds": 60,
+      "crispy_seconds": 30,
+      "tender_seconds": 60,
+      "soft_seconds": 120,
+      "min_safe_seconds": 30,
+      "technique": "切瓣下锅加热即可，可生食",
+      "warning": "不宜久煮易散",
+      "priority": 65
+    },
+    {
+      "id": "jizhao",
+      "name": "鸡爪",
+      "aliases": [
+        "凤爪",
+        "虎皮凤爪"
+      ],
+      "category": "其他",
+      "base_seconds": 300,
+      "crispy_seconds": 240,
+      "tender_seconds": 300,
+      "soft_seconds": 600,
+      "min_safe_seconds": 240,
+      "technique": "煮至脱骨软糯",
+      "warning": "需充分煮熟",
+      "priority": 28
+    },
+    {
+      "id": "yazhang",
+      "name": "鸭掌",
+      "aliases": [
+        "鸭爪",
+        "去骨鸭掌"
+      ],
+      "category": "其他",
+      "base_seconds": 300,
+      "crispy_seconds": 240,
+      "tender_seconds": 300,
+      "soft_seconds": 600,
+      "min_safe_seconds": 240,
+      "technique": "煮至软糯脱骨",
+      "warning": null,
+      "priority": 30
+    },
+    {
+      "id": "yupi",
+      "name": "鱼皮",
+      "aliases": [
+        "炸鱼皮",
+        "鱼皮脆"
+      ],
+      "category": "其他",
+      "base_seconds": 15,
+      "crispy_seconds": 8,
+      "tender_seconds": 15,
+      "soft_seconds": 30,
+      "min_safe_seconds": 8,
+      "technique": "涮几秒即软，久煮易化",
+      "warning": "含鱼过敏注意",
+      "priority": 58
+    }
   ]
 }

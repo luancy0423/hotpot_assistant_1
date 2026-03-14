@@ -305,8 +305,10 @@ class CookingPlanGenerator:
         user_preferences: dict = None,
     ) -> List[CookingItem]:
         """
-        下锅顺序由大模型生成，不再使用规则排序兜底。
+        下锅顺序：use_llm_sort=True 时用大模型排序，否则用规则（优先级）排序。
         """
+        if not use_llm_sort:
+            return self._sort_by_priority(cooking_items)
         import os
         from services.llm_service import sort_cooking_order_by_llm
         key = (llm_api_key or os.environ.get("HOTPOT_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY") or "").strip()

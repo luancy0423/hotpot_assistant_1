@@ -39,29 +39,11 @@ from services.cooking_plan_service import (
 )
 from data.user_preferences import load_preferences, save_preferences
 
-_DOTENV_LOADED = False
-
-
 def _ensure_dotenv_loaded():
-    """在需要读取大模型配置前加载项目根目录的 .env（只执行一次）。"""
-    global _DOTENV_LOADED
-    if _DOTENV_LOADED:
-        return
-    _DOTENV_LOADED = True
-    import os
-    root = os.path.dirname(os.path.abspath(__file__))
-    env_path = os.path.join(root, ".env")
-    if not os.path.isfile(env_path):
-        return
+    """在需要读取大模型配置前加载 .env（委托 config.load_dotenv）。"""
     try:
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, _, v = line.partition("=")
-                    k, v = k.strip(), v.strip().strip("'\"")
-                    if k and os.environ.get(k) is None:
-                        os.environ[k] = v
+        from config import load_dotenv
+        load_dotenv()
     except Exception:
         pass
 
