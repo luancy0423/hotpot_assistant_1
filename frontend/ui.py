@@ -305,9 +305,22 @@ footer  { display: none !important; }
 # 注入到头部，避免 Svelte 刷新导致事件丢失
 _HEAD_JS = """
 <script>
+  function getDoc() {
+    if (document.getElementById('shuai-global-overlay')) return document;
+    try {
+      var iframes = document.querySelectorAll('iframe');
+      for (var i = 0; i < iframes.length; i++) {
+        var doc = iframes[i].contentDocument || (iframes[i].contentWindow && iframes[i].contentWindow.document);
+        if (doc && doc.getElementById('shuai-global-overlay')) return doc;
+      }
+    } catch (e) {}
+    return document;
+  }
+
   window.shuaiToggleDrawer = function(show) {
-    var overlay = document.getElementById('shuai-global-overlay');
-    var drawer = document.getElementById('shuai-global-drawer');
+    var doc = getDoc();
+    var overlay = doc.getElementById('shuai-global-overlay');
+    var drawer = doc.getElementById('shuai-global-drawer');
     if (!overlay || !drawer) return;
     if (show) {
       overlay.style.display = 'block';
@@ -323,14 +336,16 @@ _HEAD_JS = """
     if(e) e.stopPropagation();
     window.shuaiToggleDrawer(false);
     setTimeout(function() {
-      var btnWrap = document.getElementById('btn-next-in-bar');
+      var doc = getDoc();
+      var btnWrap = doc.getElementById('btn-next-in-bar');
       if (btnWrap) { var btn = btnWrap.querySelector('button'); if (btn) btn.click(); }
     }, 150);
   };
 
-  // 核心：点击抽屉里的删除按钮时触发（设置索引后触发 change 再点隐藏按钮，确保 Gradio 同步）
+  // 核心：点击抽屉里的删除按钮时触发（使用同一 getDoc 保证在 iframe 内也能找到组件）
   window.shuaiDeleteIngredient = function(index) {
-    var inputWrap = document.getElementById('hidden-delete-index');
+    var doc = getDoc();
+    var inputWrap = doc.getElementById('hidden-delete-index');
     if (inputWrap) {
       var input = inputWrap.querySelector('input');
       if (input) {
@@ -340,9 +355,12 @@ _HEAD_JS = """
       }
     }
     setTimeout(function() {
-      var btnWrap = document.getElementById('btn-hidden-delete');
-      if (btnWrap) { var btn = btnWrap.querySelector('button'); if (btn) btn.click(); }
-    }, 120);
+      var btnWrap = doc.getElementById('btn-hidden-delete');
+      if (btnWrap) {
+        var btn = btnWrap.querySelector('button');
+        if (btn) btn.click();
+      }
+    }, 150);
   };
 </script>
 """
@@ -414,10 +432,10 @@ def create_ui():
             merchant_status = gr.Markdown("", visible=True, elem_id="merchant-status")
             btn_merchant    = gr.Button("🔗 一键接入商家点餐系统", size="sm", variant="secondary", elem_id="btn-merchant")
 
-            # 隐藏组件区：接收前端传来的删除索引，由 JS 触发（visible=False 避免页面上多出一个输入框）
+            # 隐藏组件区：用 CSS .hidden-func-wrap 隐藏，保证在 DOM 内以便 JS 能找到并触发
             with gr.Group(elem_classes=["hidden-func-wrap"]):
-                hidden_delete_index = gr.Number(value=-1, elem_id="hidden-delete-index", visible=False)
-                btn_hidden_delete   = gr.Button(elem_id="btn-hidden-delete", visible=False)
+                hidden_delete_index = gr.Number(value=-1, elem_id="hidden-delete-index", label="")
+                btn_hidden_delete   = gr.Button("删除", elem_id="btn-hidden-delete")
 
             with gr.Row(elem_id="step0-next-row"):
                 gr.HTML("")
