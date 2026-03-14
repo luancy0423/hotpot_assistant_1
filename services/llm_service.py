@@ -55,6 +55,14 @@ def _should_use_json_mode() -> bool:
     return v in ("1", "true", "yes", "on")
 
 
+def _ascii_header_value(value: str) -> str:
+    """HTTP 头仅支持 latin-1，确保不含非 ASCII 字符，避免 UnicodeEncodeError。"""
+    if not value:
+        return value
+    ascii_only = "".join(c for c in value if ord(c) < 128)
+    return ascii_only.strip()
+
+
 def _call_chat_completion(
     api_key: str,
     system_content: str,
@@ -72,6 +80,9 @@ def _call_chat_completion(
     base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
     model = model or DEFAULT_MODEL
     url = f"{base_url}/chat/completions"
+    api_key_safe = _ascii_header_value(api_key)
+    if not api_key_safe:
+        raise ValueError("API Key 含有非 ASCII 字符或为空，请检查 .env 中的 HOTPOT_LLM_API_KEY 是否为纯英文/数字的 key")
 
     body = {
         "model": model,
@@ -85,13 +96,13 @@ def _call_chat_completion(
     # 若启用 JSON 模式，则请求底层模型只返回 JSON 对象
     if force_json:
         body["response_format"] = {"type": "json_object"}
-    data = json.dumps(body).encode("utf-8")
+    data = json.dumps(body, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
         url,
         data=data,
         headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Bearer {api_key_safe}",
         },
         method="POST",
     )
@@ -288,13 +299,16 @@ def _call_chat_completion_vision(
         "temperature": 0.2,
         "max_tokens": 1024,
     }
+    api_key_safe = _ascii_header_value(api_key)
+    if not api_key_safe:
+        raise ValueError("API Key 含有非 ASCII 字符或为空，请检查 .env 中的 HOTPOT_LLM_API_KEY 是否为纯英文/数字的 key")
     data = json.dumps(body, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
         url,
         data=data,
         headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Bearer {api_key_safe}",
         },
         method="POST",
     )

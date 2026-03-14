@@ -1338,7 +1338,8 @@ def _basket_drawer_html(state: list) -> str:
 def _basket_bar_html(count: int, state: list) -> str:
     """
     底部购物车栏（仿美团风格）+ 上拉抽屉。
-    点击篮子图标展开抽屉浏览已选食材；点击「下一步」触发隐藏的 Gradio 按钮。
+    栏内右侧「下一步」已改为布局中的真实 Gradio 按钮（btn-next-in-bar），有后端绑定；
+    抽屉内「下一步」通过 JS 触发该按钮。
     """
     items_list = [r[0] for r in (state or []) if r and r[0]]
     preview = "、".join(items_list[:3]) + ("…" if len(items_list) > 3 else "") if items_list else "还未添加食材"
@@ -1353,7 +1354,6 @@ def _basket_bar_html(count: int, state: list) -> str:
     </div>
     <div class="bsk-right">
       <span class="bsk-count">共 {count} 件涮品</span>
-      <button class="bsk-next-btn" onclick="shuaiGrNext(event)">下一步 ›</button>
     </div>
   </div>
 
@@ -1389,18 +1389,24 @@ def _basket_bar_html(count: int, state: list) -> str:
     el.dispatchEvent(new MouseEvent('click', {{bubbles:true, cancelable:true, view:window}}));
   }}
   function grNext(){{
-    // 1. 首选：按 elem_id 定位 Gradio 按钮包裹层，再找内部 <button>
-    var wrapper = document.getElementById('btn-next-hidden');
+    // 触发底部栏的 Gradio「下一步」按钮（有后端绑定）
+    var wrapper = document.getElementById('btn-next-in-bar') || document.querySelector('[id^="btn-next-in-bar"]');
     if(wrapper){{
       var button = wrapper.querySelector('button');
       if(button){{ fireClick(button); return; }}
+      fireClick(wrapper);
+      return;
     }}
-    // 2. 兜底：遍历全部按钮，跳过购物车区域内的按钮（避免找到自身造成无限循环）
+    var fallback = document.getElementById('btn-next-hidden') || document.querySelector('[id^="btn-next-hidden"]');
+    if(fallback){{
+      var btn = fallback.querySelector('button');
+      if(btn){{ fireClick(btn); return; }}
+    }}
     var allBtns = document.querySelectorAll('button');
     for(var i=0; i<allBtns.length; i++){{
       var b = allBtns[i];
       if(b.closest && b.closest('.shuai-basket-area')) continue;
-      if(b.textContent.trim() === '下一步'){{ fireClick(b); return; }}
+      if(b.textContent.trim().indexOf('下一步')>=0){{ fireClick(b); return; }}
     }}
   }}
   window.shuaiOpenBasket=openDrawer;
@@ -1439,6 +1445,7 @@ def _nav_back_timer_v4(step, start_time):
 
 def _nav_next_v4(step):
     """下一步（含 step_home 输出版）。"""
+    print("step1 下一步 clicked")
     s = step
     if s < 0:
         new = 0
@@ -1598,13 +1605,18 @@ def create_ui():
                 )
                 btn_del_selected = gr.Button("删除所选行", variant="secondary", scale=1)
 
-            # ── 底部购物车栏（仿美团，含上拉抽屉）────────────────────
-            basket_bar_html = gr.HTML(
-                value=_basket_bar_html(0, []),
-                elem_id="basket-bar-html",
-            )
-            # 隐藏的「下一步」Gradio 按钮，由篮子栏中的 JS 触发（通过 CSS 隐藏）
-            btn_next = gr.Button("下一步", elem_id="btn-next-hidden", visible=True)
+            # ── 第一步页内「下一步」按钮（与底部栏共用同一导航逻辑，保证跳转可靠）
+            with gr.Row(elem_id="step0-next-row"):
+                gr.HTML("")
+                btn_next_visible = gr.Button("下一步 ›", variant="primary", elem_id="btn-next-visible")
+
+            # ── 底部购物车栏（左侧 HTML + 右侧真实 Gradio「下一步」按钮，有后端绑定）
+            with gr.Row(elem_id="basket-bar-row"):
+                basket_bar_html = gr.HTML(
+                    value=_basket_bar_html(0, []),
+                    elem_id="basket-bar-html",
+                )
+                btn_next_bar = gr.Button("下一步 ›", variant="primary", elem_id="btn-next-in-bar")
 
         # ══════════════════════════════════════════════════════════════════
         # 步骤2（页面4）：锅底与偏好
@@ -1925,22 +1937,16 @@ def create_ui():
                      ingredient_delete_dd, basket_bar_html],
         )
 
-        # 购物车栏「下一步」→ 步骤2
-        def _handle_next_click():
-            """处理下一步点击"""
-            try:
-                print("Next button clicked")
-                return _nav_next_v4(0)  # 从步骤0跳到步骤1
-            except Exception as e:
-                print(f"Error in _handle_next_click: {e}")
-                import traceback
-                traceback.print_exc()
-                return (0, gr.update(visible=True), gr.update(visible=False),
-                        gr.update(visible=False), gr.update(visible=False), gr.update(visible=False))
-        
-        btn_next.click(
-            fn=_handle_next_click,
-            inputs=[],
+        # 底部栏「下一步 ›」真实 Gradio 按钮，直接绑定后端（不依赖 JS 触发）
+        btn_next_bar.click(
+            fn=_nav_next_v4,
+            inputs=[step_state],
+            outputs=[step_state, step_home, step0, step1, step2, step3],
+        )
+        # 第一步页内可见「下一步」按钮，绑定同一导航
+        btn_next_visible.click(
+            fn=_nav_next_v4,
+            inputs=[step_state],
             outputs=[step_state, step_home, step0, step1, step2, step3],
         )
 
@@ -2234,12 +2240,12 @@ footer { display: none !important; }
   box-shadow: 0 10px 30px rgba(192,57,43,0.5) !important;
 }
 
-/* 隐藏通过 JS 触发的隐形“下一步”按钮外壳（版本 A 样式） */
+/* 隐藏通过 JS 触发的隐形“下一步”按钮外壳（不移除 pointer-events 以便程序化点击生效） */
 #btn-next-hidden {
   position: fixed !important;
   top: -9999px !important; left: -9999px !important;
   width: 1px !important; height: 36px !important;
-  opacity: 0 !important; pointer-events: none !important;
+  opacity: 0 !important;
   z-index: -999 !important; margin: 0 !important;
 }
 
@@ -2338,12 +2344,40 @@ footer { display: none !important; }
 #page-step0 #btn-merchant { margin: 4px 12px 8px; width: calc(100% - 24px); }
 #page-step0 #ingredient-table-html { margin: 0 12px; }
 #delete-row { margin: 4px 12px 8px; }
+#step0-next-row { margin: 16px 12px 8px; justify-content: flex-end; }
+#step0-next-row button { min-width: 120px; }
 #ing-confirm-row { margin-top: 10px; gap: 10px; }
 #ing-confirm-row #btn-confirm-add { flex: 2 !important; }
 #ing-confirm-row #btn-clear-input { flex: 1 !important; }
 #time-portion-row { margin-top: 6px; }
 
 /* ── 购物车栏 ──────────────────────────────────────────── */
+#basket-bar-row {
+  background: #2a2424 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+  margin: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 50;
+}
+#basket-bar-row .shuai-basket-bar {
+  background: transparent !important;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+}
+#basket-bar-row #btn-next-in-bar button,
+#basket-bar-row [id^="btn-next-in-bar"] button {
+  background: linear-gradient(135deg, #e07c24, #c0392b) !important;
+  color: white !important;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: .88em;
+}
 .shuai-basket-area { position: sticky; bottom: 0; z-index: 50; }
 .shuai-basket-bar {
   background: #2a2424; color: white;
@@ -2425,12 +2459,12 @@ footer { display: none !important; }
   padding: 10px 28px; font-size: .93em; cursor: pointer;
   font-family: 'Noto Sans SC', sans-serif; font-weight: 500;
 }
-/* 隐藏 Gradio 生成的「下一步」btn_next 外壳（版本 A 样式） */
+/* 隐藏 Gradio 生成的「下一步」btn_next 外壳（不移除 pointer-events 以便程序化点击生效） */
 #btn-next-hidden {
   position: fixed !important;
   top: -9999px !important; left: -9999px !important;
   width: 1px !important; height: 36px !important;
-  opacity: 0 !important; pointer-events: none !important;
+  opacity: 0 !important;
   z-index: -999 !important; overflow: hidden !important;
 }
 
