@@ -146,14 +146,14 @@ def _cover_image_base64() -> str:
 
 
 def homepage_html() -> str:
-    """首页海报 HTML；若项目根目录有 picture.png 则作为封面图展示。"""
+    """首页海报 HTML；若项目根目录有 picture.png 则作为封面图展示。无内联 style，封面图由注入的 style 控制。"""
     cover_data = _cover_image_base64()
     if cover_data:
+        # 用注入的 style 设置动态背景图，避免内联 style 覆盖外部 CSS
+        cover_escaped = cover_data.replace("'", "\\'")
         cover_block = (
-            f'<div class="hp-poster-cover" style="'
-            "position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;"
-            f"background-image:url({cover_data});"
-            '"></div>'
+            f'<style>.hp-main-container .hp-poster .hp-poster-cover {{ background-image: url(\'{cover_escaped}\'); }}</style>'
+            '<div class="hp-poster-cover"></div>'
             '<div class="hp-poster-overlay"></div>'
         )
     else:
@@ -398,9 +398,9 @@ def generate_qr_html(plan_text: str) -> str:
         return f'<span class="qr-error">二维码生成失败：{_html.escape(str(e))}</span>'
 
 def flash_overlay_html(flash_duration_sec: float = 1.0) -> str:
-    """全屏闪烁 overlay HTML，用于下锅/捞出到点提醒。动画与背景在 assets/style.css 定义。"""
+    """全屏闪烁 overlay HTML，用于下锅/捞出到点提醒。动画与背景在 assets/style.css 定义；仅用 CSS 变量传时长，避免内联具体样式。"""
     return (
-        f'<div class="hotpot-flash-overlay" style="animation:hotpot-flash-fade {flash_duration_sec}s ease-out forwards;"></div>'
+        f'<div class="hotpot-flash-overlay" style="--flash-duration: {flash_duration_sec}s;"></div>'
     )
 
 # 兼容 handlers 等使用的旧名称

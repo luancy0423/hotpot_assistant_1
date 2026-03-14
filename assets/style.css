@@ -1,9 +1,42 @@
 /* ═══════════════════════════════════════════════════════════════════
-   涮涮AI - 声明式样式表
-   颜色与尺寸单一事实来源：仅在此 :root 中定义色值与关键尺寸
+   涮涮AI - 设计令牌架构（Design Tokens）
+   第一层：基础令牌（仅此处定义具体色值）
+   第二层：语义变量（组件只引用用途，不关心具体色值）
+   第三层：组件覆盖仅引用第二层
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
+  /* ── 第一层：基础令牌 Global Tokens ── */
+  --color-brand-red: #a31515;
+  --color-brand-red-dark: #2b0505;
+  --color-brand-red-bright: #c0392b;
+  --color-brand-gold: #ffda75;
+  --color-surface-paper: #faf7f2;
+  --color-surface-cell: #EDEBDE;
+  --color-text-primary: #1a1a1a;
+  --color-text-on-red: #ffffff;
+  --color-bar: #2a2424;
+  --color-accent-orange: #e07c24;
+  --color-accent-orange-strong: #e65c00;
+  --color-neutral-white: #ffffff;
+  --color-neutral-gray: #999999;
+  --color-neutral-gray-light: #ddd;
+  --color-neutral-border: #eee;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-overlay-poster: rgba(0, 0, 0, 0.35);
+  --color-shadow: rgba(0, 0, 0, 0.2);
+
+  /* ── 第二层：语义变量 Semantic Variables（组件只引用这些）── */
+  --app-bg: var(--color-brand-red);
+  --app-bg-dark: var(--color-brand-red-dark);
+  --card-bg: var(--color-surface-cell);
+  --header-title: var(--color-text-on-red);
+  --header-num: var(--color-brand-gold);
+  --input-bg: var(--color-neutral-white);
+  --radio-selected: linear-gradient(135deg, var(--color-accent-orange), var(--color-brand-red-bright));
+  --accordion-header-bg: var(--card-bg);
+  --radio-bg: var(--card-bg);
+
   /* ── 尺寸（Layout & Sizing）单一事实来源 ── */
   --app-max-width: 450px;
   --app-bottom-padding: 80px;
@@ -34,37 +67,35 @@
   --poster-aspect-w: 99;
   --poster-aspect-h: 140;
 
-  /* ── 主色调：火锅核心颜色 ── */
-  --hotpot-red-dark: #2b0505;
-  --hotpot-red-main: #a31515;
-  --hotpot-red-bright: #c0392b;
-  --hotpot-gold: #ffda75;
-  --hotpot-orange: #e65c00;
-  --hotpot-orange-soft: #e07c24;
-  --hotpot-white: #ffffff;
-  --hotpot-black: #1a1a1a;
-  --hotpot-gray: #999999;
-  --hotpot-gray-light: #ddd;
-  --hotpot-gray-border: #eee;
-  --hotpot-overlay: rgba(0, 0, 0, 0.6);
-  --hotpot-overlay-poster: rgba(0, 0, 0, 0.35);
-  --hotpot-shadow: rgba(0, 0, 0, 0.2);
+  /* ── 兼容旧变量名（指向语义层或基础层）── */
+  --hotpot-red-dark: var(--color-brand-red-dark);
+  --hotpot-red-main: var(--color-brand-red);
+  --hotpot-red-bright: var(--color-brand-red-bright);
+  --hotpot-gold: var(--color-brand-gold);
+  --hotpot-orange: var(--color-accent-orange-strong);
+  --hotpot-orange-soft: var(--color-accent-orange);
+  --hotpot-white: var(--color-neutral-white);
+  --hotpot-black: var(--color-text-primary);
+  --hotpot-gray: var(--color-neutral-gray);
+  --hotpot-gray-light: var(--color-neutral-gray-light);
+  --hotpot-gray-border: var(--color-neutral-border);
+  --hotpot-overlay: var(--color-overlay);
+  --hotpot-overlay-poster: var(--color-overlay-poster);
+  --hotpot-shadow: var(--color-shadow);
   --hotpot-shadow-strong: rgba(0, 0, 0, 0.25);
-  --hotpot-cell-bg: rgba(237, 235, 222, 1);
-  --hotpot-bar: #2a2424;
-  --hotpot-btn-light: #faf7f2;
-
-  /* 兼容旧变量名 */
+  --hotpot-cell-bg: var(--color-surface-cell);
+  --hotpot-bar: var(--color-bar);
+  --hotpot-btn-light: var(--color-surface-paper);
   --shuai-width: var(--app-max-width);
-  --shuai-bg: var(--hotpot-red-main);
-  --shuai-bg-dark: var(--hotpot-red-dark);
-  --shuai-bar: var(--hotpot-bar);
-  --shuai-accent: var(--hotpot-orange-soft);
-  --shuai-accent-2: var(--hotpot-red-bright);
-  --shuai-gold: var(--hotpot-gold);
+  --shuai-bg: var(--app-bg);
+  --shuai-bg-dark: var(--app-bg-dark);
+  --shuai-bar: var(--color-bar);
+  --shuai-accent: var(--color-accent-orange);
+  --shuai-accent-2: var(--color-brand-red-bright);
+  --shuai-gold: var(--color-brand-gold);
   --shuai-radius: 16px;
-  --shuai-shadow: 0 4px 14px var(--hotpot-shadow);
-  --shuai-cell-bg: var(--hotpot-cell-bg);
+  --shuai-shadow: 0 4px 14px var(--color-shadow);
+  --shuai-cell-bg: var(--card-bg);
 }
 
 /* ── 基础与布局 ───────────────────────────────────────────────── */
@@ -302,6 +333,7 @@ footer { display: none !important; }
 #page-step0 .label,
 #page-step0 p,
 #page-step0 span { color: var(--hotpot-black); }
+/* 步骤标题包裹层：保持透明，不设实色 background，避免与 step 背景冲突 */
 .shuai-step-header-wrap { background: transparent; }
 #basket-bar-row > div,
 #basket-bar-row [class*="block"] { background: transparent; }
@@ -553,6 +585,31 @@ footer { display: none !important; }
 #page-step1 span { color: var(--hotpot-black); }
 #page-step1 .pref-acc .gr-group { background: var(--shuai-cell-bg); }
 
+/* ── 针对 step1 手风琴按钮精准打击，移除悬停/聚焦时的蓝色 ── */
+#page-step1 .gr-accordion button {
+  background-color: var(--card-bg) !important;
+  color: var(--hotpot-black) !important;
+  border: none !important;
+}
+#page-step1 .gr-accordion button:hover {
+  background-color: var(--color-surface-paper) !important;
+  filter: brightness(0.95);
+}
+#page-step1 .pref-acc,
+#page-step1 .pref-radio {
+  background-color: var(--card-bg) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+#page-step1 .pref-radio label:has(input:checked) {
+  background: linear-gradient(135deg, var(--color-accent-orange), var(--color-brand-red-bright)) !important;
+}
+/* 移除 Radio 容器周围的蓝色残影 */
+#page-step1 .pref-radio {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
 /* 第二步：隐藏组件类型（仅隐藏控件顶部的 type 标签，不隐藏选项文字） */
 #page-step1 .pref-radio > .label,
 #page-step1 .pref-radio > .gr-label,
@@ -572,6 +629,17 @@ footer { display: none !important; }
 /* 手风琴标题保持显示 */
 #page-step1 .pref-acc > div:first-child,
 #page-step1 .gr-accordion > div:first-child { display: flex !important; visibility: visible !important; }
+
+/* ── 针对 step3 加载界面的背景覆盖（生成方案时的 loading 遮罩）── */
+.loading-container,
+.load-background,
+div[class*="loading"] {
+  background-color: rgba(163, 21, 21, 0.8) !important; /* 半透明火锅红 */
+}
+.loading-container svg circle {
+  stroke: var(--color-brand-gold) !important;
+}
+
 #plan-scroll-wrap {
   background: var(--shuai-cell-bg);
   margin: var(--card-margin);
@@ -661,6 +729,7 @@ footer { display: none !important; }
   z-index: 9999;
   pointer-events: none;
   background: rgba(255, 140, 0, 0.35);
+  animation: hotpot-flash-fade var(--flash-duration, 1s) ease-out forwards;
 }
 @keyframes hotpot-flash-fade {
   0% { opacity: 1; }

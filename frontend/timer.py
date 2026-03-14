@@ -225,8 +225,13 @@ def timer_tick(
     start_time: float,
     last_put_sec: Optional[int],
     last_take_sec: Optional[int],
+    is_paused: bool = False,
+    paused_elapsed: int = 0,
+    total_paused_duration: float = 0.0,
+    excluded_ingredients: Optional[List[str]] = None,
 ) -> Tuple[str, int, int, str]:
-    """每秒调用：计算当前进度，返回 (display_html, new_put_sec, new_take_sec, voice_html_out)。"""
+    """每秒调用：计算当前进度，返回 (display_html, new_put_sec, new_take_sec, voice_html_out)。
+    支持暂停（is_paused/paused_elapsed/total_paused_duration）与剔除食材（excluded_ingredients）。"""
     if not plan_data or not start_time or start_time <= 0:
         return (
             "<p style='color:#bbb;text-align:center;padding:40px;font-size:.95em'>等待开始…</p>",
@@ -234,16 +239,32 @@ def timer_tick(
             last_take_sec or -1,
             "",
         )
+
+    if is_paused:
+        elapsed = paused_elapsed
+    else:
+        elapsed = int(time.time() - start_time - total_paused_duration)
+
+    excluded_set = set(excluded_ingredients or [])
+
     state = _voice_timer_state_by_start.setdefault(
         start_time, {"last_voice_html": "", "voice_played_at_elapsed": -1}
     )
     last_voice_html = state.get("last_voice_html") or ""
     voice_played_at_elapsed = state.get("voice_played_at_elapsed", -1) or -1
-    elapsed = int(time.time() - start_time)
+
     timeline = plan_data.get("timeline") or {}
     total_sec = timeline.get("total_duration_seconds") or 0
     events = timeline.get("events") or []
     items = timeline.get("items") or []
+
+    if excluded_set:
+        events = [e for e in events if e.get("item_name", "") not in excluded_set]
+        items = [it for it in items if it.get("ingredient_name", "") not in excluded_set]
+        if events:
+            total_sec = max(e["time_seconds"] for e in events)
+        else:
+            total_sec = 0
     put_events = [e for e in events if e.get("action") == "下锅"]
     take_events = [e for e in events if e.get("action") in ("捞出", "捞起")]
     put_due = [e for e in put_events if e["time_seconds"] <= elapsed]
@@ -266,6 +287,18 @@ def timer_tick(
         elapsed, total_sec, show_put, show_take,
         name_put, name_take, next_put_info, next_take_info, items,
     )
+    if is_paused:
+        pause_banner = (
+            '<div style="text-align:center;padding:12px 16px;margin:0 16px 8px;'
+            'border-radius:10px;background:#fff3cd;border:1.5px solid #ffc107;'
+            'color:#856404;font-weight:700;font-size:1em;letter-spacing:1px">'
+            '⏸ 已暂停</div>'
+        )
+        insert_pos = display_html.find(">") + 1
+        if insert_pos > 1:
+            display_html = display_html[:insert_pos] + pause_banner + display_html[insert_pos:]
+        return display_html, new_put_sec, new_take_sec, ""
+
     voice_put_new = bool(cur_put and cur_put["time_seconds"] > last_put_sec)
     voice_take_new = bool(cur_take and cur_take["time_seconds"] > last_take_sec)
     play_voice = voice_put_new or voice_take_new

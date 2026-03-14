@@ -26,6 +26,7 @@ from frontend.handlers import (
     generate_and_go, show_generating, start_eating,
     voice_to_ingredients, image_to_ingredients,
     load_preference_ui,
+    toggle_pause_timer, get_excludable_ingredients, toggle_ingredient_timer,
 )
 from frontend.timer import timer_tick
 
@@ -41,6 +42,17 @@ else:
 # 全局原生 JavaScript 控制器（支柱一：JS 仅负责抽屉升降动画）
 _HEAD_JS = """
 <script>
+  // 强制亮色模式，防止 Gradio 深色模式反转配色（设计令牌架构）
+  document.documentElement.classList.remove('dark');
+  (function() {
+    var observer = new MutationObserver(function() {
+      if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  })();
+
   // 健壮的元素查找器：处理 Gradio 可能存在的 iframe 嵌套
   function safeFind(selector) {
     var el = document.querySelector(selector);
@@ -247,9 +259,36 @@ def create_ui():
         step3 = gr.Column(visible=False, elem_id="page-step3")
         with step3:
             gr.HTML(step_header_html("", "🍲 吃饭计时", "shuai-step-bar--timer"))
+            with gr.Row(elem_id="timer-pause-row"):
+                btn_pause_resume = gr.Button("⏸ 暂停", variant="secondary", elem_id="btn-pause-resume")
             timer_reminder_md = gr.HTML("<p style='color:#bbb;text-align:center;padding:40px;font-size:.95em'>等待开始…</p>")
             timer_beep_html = gr.HTML("")
             timer_bottom_md = gr.Markdown("")
+            gr.HTML('<div class="shuai-sec-sep" style="margin:10px 0 4px">🚫 剔除不计时</div>')
+            with gr.Column(elem_id="timer-exclude-wrap"):
+                @gr.render(inputs=[app_state])
+                def render_exclude_list(s):
+                    st = s or initial_app_state()
+                    rows = get_excludable_ingredients(st)
+                    if not rows:
+                        gr.Markdown("暂无方案食材；开始计时后此处可勾选不参与计时的食材。", elem_classes=["timer-exclude-empty"])
+                        return
+                    for name, is_excluded in rows:
+                        if not name:
+                            continue
+                        with gr.Row(elem_classes=["timer-exclude-row"]):
+                            gr.Markdown(f"**{_html.escape(name)}**")
+                            lbl = "✓ 计入计时" if is_excluded else "不计时"
+                            btn_toggle = gr.Button(lbl, variant="secondary" if is_excluded else "primary", size="sm")
+
+                            def _bind_toggle(ingredient_name):
+                                def fn(s, _n=ingredient_name):
+                                    s = s or initial_app_state()
+                                    new_s, = toggle_ingredient_timer(s, _n)
+                                    return new_s
+                                return fn
+
+                            btn_toggle.click(fn=_bind_toggle(name), inputs=[app_state], outputs=[app_state])
             gr.HTML('<div class="shuai-sec-sep" style="margin:10px 0 4px">📷 开锅检测</div>')
             with gr.Group(elem_id="boiling-detect-group"):
                 boiling_image      = gr.Image(label="拍摄 / 上传锅底照片", sources=["webcam", "upload"], type="filepath", height=180)
@@ -378,15 +417,33 @@ def create_ui():
 
         def _timer_tick_wrapper(s):
             st = s or initial_app_state()
-            plan = st.plan_data if hasattr(st, "plan_data") else None
+            plan = getattr(st, "plan_data", None)
             start = getattr(st, "timer_start_time", 0) or 0
             put = getattr(st, "last_beeped_put", -1) or -1
             take = getattr(st, "last_beeped_take", -1) or -1
-            reminder, new_put, new_take, beep = timer_tick(plan, start, put, take)
+            is_paused = getattr(st, "timer_paused", False)
+            paused_elapsed = getattr(st, "paused_elapsed", 0)
+            total_paused_duration = getattr(st, "total_paused_duration", 0.0)
+            excluded = getattr(st, "excluded_ingredients", []) or []
+            reminder, new_put, new_take, beep = timer_tick(
+                plan, start, put, take,
+                is_paused=is_paused,
+                paused_elapsed=paused_elapsed,
+                total_paused_duration=total_paused_duration,
+                excluded_ingredients=excluded,
+            )
             new_st = st.with_last_beeped(new_put, new_take)
-            return new_st, reminder, beep
+            pause_btn_label = gr.update(value="▶ 继续" if getattr(new_st, "timer_paused", False) else "⏸ 暂停")
+            return new_st, reminder, beep, pause_btn_label
+
+        def _pause_resume_click(s):
+            new_s, = toggle_pause_timer(s or initial_app_state())
+            label = gr.update(value="▶ 继续" if new_s.timer_paused else "⏸ 暂停")
+            return new_s, label
+
+        btn_pause_resume.click(fn=_pause_resume_click, inputs=[app_state], outputs=[app_state, btn_pause_resume])
         btn_back_from_timer.click(fn=nav_back_timer_v4, inputs=[app_state], outputs=_nav_outputs)
-        gr.Timer(value=1).tick(fn=_timer_tick_wrapper, inputs=[app_state], outputs=[app_state, timer_reminder_md, timer_beep_html])
+        gr.Timer(value=1).tick(fn=_timer_tick_wrapper, inputs=[app_state], outputs=[app_state, timer_reminder_md, timer_beep_html, btn_pause_resume])
 
     return demo
 
@@ -395,12 +452,24 @@ def launch_demo():
     """创建界面并启动服务（app.py 部署入口调用）。"""
     from config import SERVER_NAME, SERVER_PORT, GRADIO_SHARE
     demo = create_ui()
-    # 主题仅为 Gradio 组件默认高亮色，实际颜色以 assets/style.css 中 :root 变量为准
+    # 桥接：Gradio 主题变量直接引用 style.css 令牌（仅使用 .set() 支持的参数）
+    # 次要色色阶、加载圈等由 assets/style.css 暴力覆盖
+    custom_theme = gr.themes.Soft(
+        primary_hue="orange",
+        secondary_hue="orange",
+        neutral_hue="slate",
+    ).set(
+        block_background_fill="var(--card-bg)",
+        block_label_background_fill="var(--card-bg)",
+        input_background_fill="var(--hotpot-white)",
+        background_fill_secondary="var(--card-bg)",
+        border_color_accent="var(--hotpot-orange)",
+    )
     demo.launch(
         server_name=SERVER_NAME,
         server_port=SERVER_PORT,
         share=GRADIO_SHARE,
-        theme=gr.themes.Soft(primary_hue="orange"),
+        theme=custom_theme,
         css=_CSS,
         head=_HEAD_JS,
     )
