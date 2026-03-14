@@ -221,9 +221,7 @@ def generate_plan_ui(
         texture=texture_value,
         user_mode=mode_value,
         allergens_to_avoid=allergens,
-        use_llm_sort=bool(
-            os.environ.get("HOTPOT_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
-        ),
+        use_llm_sort=True,
         llm_api_key=None,
         custom_ingredients=custom_ingredients if custom_ingredients else None,
     )
@@ -750,7 +748,7 @@ def _generate_and_go(ingredient_table, broth_label, texture_label, mode_label, a
     if step == 2:
         plan_text = _plan_to_share_text(plan_data) if plan_data else ""
         return md, 2, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), "", plan_data, plan_text
-    return md, step, gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), md, None, ""
+    return md, step, gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), md, None, ""
 
 
 def _start_eating(plan_data):
@@ -2236,7 +2234,7 @@ footer { display: none !important; }
   box-shadow: 0 10px 30px rgba(192,57,43,0.5) !important;
 }
 
-/* 隐藏通过 JS 触发的隐形“下一步”按钮外壳 */
+/* 隐藏通过 JS 触发的隐形“下一步”按钮外壳（版本 A 样式） */
 #btn-next-hidden {
   position: fixed !important;
   top: -9999px !important; left: -9999px !important;
@@ -2427,13 +2425,14 @@ footer { display: none !important; }
   padding: 10px 28px; font-size: .93em; cursor: pointer;
   font-family: 'Noto Sans SC', sans-serif; font-weight: 500;
 }
-/* 隐藏 Gradio 生成的「下一步」btn_next 外壳 */
+/* 隐藏 Gradio 生成的「下一步」btn_next 外壳（版本 A 样式） */
 #btn-next-hidden {
   position: fixed !important;
   top: -9999px !important; left: -9999px !important;
   width: 1px !important; height: 36px !important;
   opacity: 0 !important; pointer-events: none !important;
-  z-index: -999 !important; overflow: hidden !important; }
+  z-index: -999 !important; overflow: hidden !important;
+}
 
 /* ── 食材表格 ──────────────────────────────────────────── */
 .ingredient-table-wrap .ingredient-display-table { width: 100%; border-collapse: collapse; }
