@@ -213,19 +213,16 @@ def basket_drawer_html(state: list) -> str:
     return "\n".join(rows) if rows else '<p class="drawer-empty">无有效食材。</p>'
 
 def basket_bar_html(count: int, state: list) -> str:
-    """底部购物车栏 HTML（含上拉抽屉）。
-    点单系统逻辑：① 固定在页面最底部（由 #basket-bar-row CSS 实现）
-    ② 点击 .bsk-left → 平滑上拉弹出菜单（抽屉移入 body + .open 触发 transition）
-    ③ 点击遮罩 .shuai-overlay → 关闭菜单（由 _DRAWER_JS 事件委托处理）
-    抽屉内为商品列表（basket_drawer_html），适配移动端/桌面端。"""
+    """底部购物车栏 HTML（含上拉抽屉），采用全局动画触发，不再劫持DOM。"""
     items_list = [r[0] for r in (state or []) if r and r[0]]
     preview = "、".join(items_list[:3]) + ("…" if len(items_list) > 3 else "") if items_list else "还未添加食材"
     badge   = f'<span class="bsk-badge">{count}</span>' if count > 0 else ""
     drawer_content = basket_drawer_html(state or [])
+
     return f"""
 <div class="shuai-basket-area">
-  <div class="shuai-basket-bar">
-    <div class="bsk-left" onclick="shuaiOpenBasket(event)">
+  <div class="shuai-basket-bar" onclick="window.shuaiToggleDrawer(true)">
+    <div class="bsk-left">
       <span class="bsk-icon">🛒{badge}</span>
       <span class="bsk-preview">{preview}</span>
     </div>
@@ -233,70 +230,21 @@ def basket_bar_html(count: int, state: list) -> str:
       <span class="bsk-count">共 {count} 件涮品</span>
     </div>
   </div>
-  <div class="shuai-overlay" id="shuai-overlay-{count}" onclick="shuaiCloseBasket(this)" style="display:none"></div>
-  <div class="shuai-drawer" id="shuai-drawer-{count}">
+
+  <div class="shuai-overlay" id="shuai-global-overlay" onclick="window.shuaiToggleDrawer(false)"></div>
+
+  <div class="shuai-drawer" id="shuai-global-drawer">
     <div class="shuai-drawer-handle"></div>
     <div class="shuai-drawer-header">
       <span class="shuai-drawer-title">已选食材（{count}件）</span>
-      <button class="shuai-drawer-close" onclick="shuaiCloseBasket2('{count}')">✕</button>
+      <button class="shuai-drawer-close" onclick="window.shuaiToggleDrawer(false)">✕</button>
     </div>
     <div class="shuai-drawer-body">{drawer_content}</div>
     <div class="shuai-drawer-footer">
-      <button class="shuai-drawer-next" onclick="shuaiCloseBasket2('{count}'); setTimeout(shuaiGrNextRaw, 120)">下一步</button>
+      <button class="shuai-drawer-next" onclick="window.shuaiTriggerNext(event)">下一步</button>
     </div>
   </div>
 </div>
-<script>
-(function(){{
-  var cnt = '{count}';
-  function openDrawer(){{
-    var o=document.getElementById('shuai-overlay-'+cnt);
-    var d=document.getElementById('shuai-drawer-'+cnt);
-    if(!o||!d)return;
-    var area=o.parentElement;
-    if(area){{
-      o._shuaiArea=area;
-      document.body.appendChild(o);
-      document.body.appendChild(d);
-    }}
-    o.style.display='block';
-    d.classList.add('open');
-  }}
-  function closeDrawer(){{
-    var o=document.getElementById('shuai-overlay-'+cnt);
-    var d=document.getElementById('shuai-drawer-'+cnt);
-    if(o)o.style.display='none';
-    if(d)d.classList.remove('open');
-    if(o&&o._shuaiArea){{
-      o._shuaiArea.appendChild(o);
-      o._shuaiArea.appendChild(d);
-      delete o._shuaiArea;
-    }}
-  }}
-  function fireClick(el){{
-    el.dispatchEvent(new MouseEvent('click', {{bubbles:true, cancelable:true, view:window}}));
-  }}
-  function grNext(){{
-    var wrapper = document.getElementById('btn-next-in-bar') || document.querySelector('[id^="btn-next-in-bar"]');
-    if(wrapper){{
-      var button = wrapper.querySelector('button');
-      if(button){{ fireClick(button); return; }}
-      fireClick(wrapper); return;
-    }}
-    var allBtns = document.querySelectorAll('button');
-    for(var i=0; i<allBtns.length; i++){{
-      var b = allBtns[i];
-      if(b.closest && b.closest('.shuai-basket-area')) continue;
-      if(b.textContent.trim().indexOf('下一步')>=0){{ fireClick(b); return; }}
-    }}
-  }}
-  window.shuaiOpenBasket=openDrawer;
-  window.shuaiCloseBasket=function(el){{closeDrawer();}};
-  window.shuaiCloseBasket2=closeDrawer;
-  window.shuaiGrNext=function(e){{if(e)e.stopPropagation();grNext();}};
-  window.shuaiGrNextRaw=grNext;
-}})();
-</script>
 """
 
 def boiling_result_html(icon: str, stage: str, description: str, advice: str) -> str:

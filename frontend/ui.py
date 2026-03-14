@@ -187,9 +187,42 @@ footer  { display: none !important; }
 .bsk-preview { font-size: .8em; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bsk-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .bsk-count { font-size: 1em !important; font-weight: 600 !important; color: #fff !important; background: rgba(255,255,255,.1); padding: 4px 12px; border-radius: 20px; }
-.shuai-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.48); z-index: 99998 !important; cursor: pointer; }
-.shuai-drawer  { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%); width: min(430px,100vw); max-height: 68vh; background: white; border-radius: 18px 18px 0 0; z-index: 99999 !important; display: flex; flex-direction: column; transition: transform .32s cubic-bezier(.32,0,.15,1); box-shadow: 0 -6px 36px rgba(0,0,0,.18); }
-.shuai-drawer.open { transform: translateX(-50%) translateY(0); }
+/* ── 遮罩层 (修复动画) ── */
+.shuai-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 99998 !important;
+  cursor: pointer;
+  /* 核心：用 opacity 和 visibility 替代 display:none 以支持动画过渡 */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.shuai-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ── 上拉抽屉 (修复动画) ── */
+.shuai-drawer {
+  position: fixed; bottom: 0; left: 50%;
+  /* 核心：默认沉在屏幕底部外 100% 的位置 */
+  transform: translateX(-50%) translateY(100%);
+  width: 450px; max-width: 100%; max-height: 70vh;
+  background: white; border-radius: 18px 18px 0 0;
+  z-index: 99999 !important; display: flex; flex-direction: column;
+  transition: transform 0.3s cubic-bezier(0.32,0,0.15,1);
+  box-shadow: 0 -6px 36px rgba(0,0,0,0.18);
+}
+.shuai-drawer.active {
+  /* 激活时升起回原位 */
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 确保底部悬浮栏自身也能触发鼠标手势 */
+.shuai-basket-bar {
+  cursor: pointer !important;
+}
 .shuai-drawer-handle { width: 38px; height: 4px; background: #ddd; border-radius: 2px; margin: 10px auto 6px; }
 .shuai-drawer-header { padding: 8px 20px 14px; border-bottom: 1px solid #f0ece8; display: flex; justify-content: space-between; align-items: center; color: black; }
 .shuai-drawer-title  { font-weight: 600; font-size: .97em; }
@@ -259,165 +292,39 @@ footer  { display: none !important; }
 .gradio-container .block.padded { padding: 6px 0 !important; }
 """
 
-# 上拉菜单：在「实际包含应用的 document」上做点击委托（兼容同页/iframe）
-_DRAWER_JS = r"""
-(function() {
-  var attachedDocs = {};
-  function openBasket(area) {
-    var o = area.querySelector('.shuai-overlay');
-    var d = area.querySelector('.shuai-drawer');
-    if (!o || !d) return;
-    o._area = area;
-    o._drawer = d;
-    var doc = area.ownerDocument || document;
-    var root = doc.body;
-    if (!root) return;
-    root.appendChild(o);
-    root.appendChild(d);
-    o.style.zIndex = '99998';
-    o.style.position = 'fixed';
-    o.style.inset = '0';
-    o.style.display = 'block';
-    d.style.zIndex = '99999';
-    d.style.position = 'fixed';
-    d.classList.add('open');
-    if (!o._shuaiCloseBound) {
-      o._shuaiCloseBound = true;
-      o.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); closeBasket(o); });
-      var closeBtn = d.querySelector('.shuai-drawer-close');
-      if (closeBtn) closeBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); closeBasket(o); });
-      var nextBtn = d.querySelector('.shuai-drawer-next');
-      if (nextBtn) nextBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeBasket(o);
-        setTimeout(function() {
-          var doc2 = o.ownerDocument || document;
-          var btn = doc2.getElementById('btn-next-in-bar');
-          if (btn) { var b = btn.querySelector('button'); if (b) b.click(); }
-        }, 120);
-      });
-    }
-  }
-  function closeBasket(overlay) {
-    var area = overlay._area;
-    var d = overlay._drawer;
-    if (!d) return;
-    overlay.style.display = 'none';
-    d.classList.remove('open');
-    if (area && area.parentNode) {
-      try {
-        area.appendChild(overlay);
-        area.appendChild(d);
-      } catch (err) {}
+# 注入到页面头部的全局抽屉控制器（通过 gr.Blocks(..., head=_HEAD_JS) 挂载）
+_HEAD_JS = """
+<script>
+  // 注入到页面顶部的全局抽屉控制器
+  window.shuaiToggleDrawer = function(show) {
+    var overlay = document.getElementById('shuai-global-overlay');
+    var drawer = document.getElementById('shuai-global-drawer');
+    if (!overlay || !drawer) return;
+
+    if (show) {
+      overlay.classList.add('active');
+      drawer.classList.add('active');
     } else {
-      var doc = overlay.ownerDocument || document;
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (d.parentNode) d.parentNode.removeChild(d);
-    }
-    delete overlay._area;
-    delete overlay._drawer;
-  }
-  function resolveTarget(t) {
-    if (!t || !t.closest) return null;
-    if (t.closest('.bsk-left')) return t.closest('.shuai-basket-area');
-    return null;
-  }
-  function screenFlash(doc, times, callback) {
-    if (!doc || !doc.body) { if (callback) callback(); return; }
-    var div = doc.createElement('div');
-    div.id = 'shuai-debug-flash';
-    div.style.cssText = 'position:fixed;inset:0;background:#f00;z-index:100000;opacity:0;pointer-events:none;transition:opacity 0.08s ease;';
-    doc.body.appendChild(div);
-    var step = 0;
-    var maxStep = times * 2;
-    function tick() {
-      if (step >= maxStep) {
-        if (div.parentNode) div.parentNode.removeChild(div);
-        if (callback) callback();
-        return;
-      }
-      div.style.opacity = step % 2 === 0 ? '0.45' : '0';
-      step++;
-      setTimeout(tick, 100);
-    }
-    setTimeout(tick, 50);
-  }
-  var handler = function(e) {
-    var t = e.target;
-    var area = resolveTarget(t);
-    if (!area && e.composedPath) {
-      var path = e.composedPath();
-      for (var i = 0; i < path.length; i++) {
-        area = resolveTarget(path[i]);
-        if (area) break;
-      }
-    }
-    if (area) {
-      e.preventDefault();
-      e.stopPropagation();
-      openBasket(area);
-      return;
-    }
-    if (t.closest && t.closest('.shuai-overlay')) {
-      e.preventDefault();
-      e.stopPropagation();
-      closeBasket(t.closest('.shuai-overlay'));
-      return;
-    }
-    if (t.closest && t.closest('.shuai-drawer-close')) {
-      e.preventDefault();
-      e.stopPropagation();
-      var drawer = t.closest('.shuai-drawer');
-      var overlay = drawer && drawer.previousElementSibling;
-      if (overlay && overlay.classList && overlay.classList.contains('shuai-overlay')) closeBasket(overlay);
-      return;
-    }
-    if (t.closest && t.closest('.shuai-drawer-next')) {
-      e.preventDefault();
-      e.stopPropagation();
-      var drawer = t.closest('.shuai-drawer');
-      var overlay = drawer && drawer.previousElementSibling;
-      if (overlay && overlay.classList && overlay.classList.contains('shuai-overlay')) closeBasket(overlay);
-      var doc = (overlay && overlay.ownerDocument) || document;
-      setTimeout(function() {
-        var btn = doc.getElementById('btn-next-in-bar');
-        if (btn) { var b = btn.querySelector('button'); if (b) b.click(); }
-      }, 120);
-      return;
+      overlay.classList.remove('active');
+      drawer.classList.remove('active');
     }
   };
-  function attachToDoc(doc) {
-    if (!doc || attachedDocs[doc]) return;
-    try {
-      doc.addEventListener('click', handler, true);
-      attachedDocs[doc] = true;
-    } catch (err) {}
-  }
-  function attach() {
-    attachToDoc(document);
-    try {
-      if (window.frames) {
-        for (var i = 0; i < window.frames.length; i++) {
-          try {
-            var f = window.frames[i];
-            if (f && f.document) attachToDoc(f.document);
-          } catch (e) {}
-        }
+
+  // 抽屉内点击“下一步”时触发
+  window.shuaiTriggerNext = function(e) {
+    if(e) e.stopPropagation();
+    window.shuaiToggleDrawer(false); // 先收起抽屉
+
+    // 延迟 150ms 等待动画完成后，代为点击 Gradio 原生的下一步按钮
+    setTimeout(function() {
+      var btnWrap = document.getElementById('btn-next-in-bar');
+      if (btnWrap) {
+        var btn = btnWrap.querySelector('button');
+        if (btn) btn.click();
       }
-      var iframes = document.querySelectorAll('iframe');
-      for (var j = 0; j < iframes.length; j++) {
-        try {
-          var idoc = iframes[j].contentDocument || iframes[j].contentWindow && iframes[j].contentWindow.document;
-          if (idoc) attachToDoc(idoc);
-        } catch (e) {}
-      }
-    } catch (e) {}
-  }
-  setTimeout(attach, 100);
-  setTimeout(attach, 500);
-  setTimeout(attach, 1500);
-})();
+    }, 150);
+  };
+</script>
 """
 
 # ── 主界面构建 ───────────────────────────────────────────────────
@@ -427,7 +334,7 @@ def create_ui():
     构建完整的 Gradio 多页应用。
     页面流：首页 → 步骤1（食材）→ 步骤2（偏好）→ 步骤3（方案）→ 步骤4（计时）
     """
-    with gr.Blocks(title="涮涮AI - 智能火锅助手") as demo:
+    with gr.Blocks(title="涮涮AI - 智能火锅助手", head=_HEAD_JS) as demo:
         gr.HTML('<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900'
                 '&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">')
 
@@ -733,9 +640,6 @@ def create_ui():
             inputs=[plan_data_state, start_time_state, last_beeped_put, last_beeped_take],
             outputs=[timer_reminder_md, last_beeped_put, last_beeped_take, timer_beep_html],
         )
-
-        # 页面加载时注入 JS：事件委托处理两个上拉菜单的点击（Gradio 不执行 HTML 内 script）
-        demo.load(js=_DRAWER_JS)
 
     return demo
 
