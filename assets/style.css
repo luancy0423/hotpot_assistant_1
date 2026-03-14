@@ -215,6 +215,11 @@ footer { display: none !important; }
   box-shadow: var(--shuai-shadow);
   border: none;
 }
+/* 仅壳的「直接子层」透明，透出米色；不碰内层小组件（input/按钮等的包装） */
+#ing-card-wrap > div,
+#page-step0 [class*="ing-card-wrap"] > div {
+  background: transparent !important;
+}
 /* 内层 Group 透明，透出外层米色 */
 #ing-card-group,
 [id^="ing-card-group"],
