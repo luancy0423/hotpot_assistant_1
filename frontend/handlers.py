@@ -309,39 +309,48 @@ def build_ingredient_library_md():
     return "\n".join(lines)
 
 
-def show_generating():
-    """点击生成后立即显示加载提示并切换到结果页。"""
+def show_generating(app_state):
+    """点击生成后立即显示加载提示并切换到结果页，透传 app_state。"""
+    from frontend.state import AppState
     loading_md = (
         "## ⏳ 正在生成方案\n\n**请等待一下，方案即将生成…**\n\n"
         "正在调用大模型智能排序，请稍候。\n\n*（通常需要 10～30 秒）*"
     )
+    app_state = app_state or AppState()
     return (
         loading_md,
-        2,
         gr.update(visible=False),
         gr.update(visible=False),
         gr.update(visible=True),
         gr.update(visible=False),
         "",
+        app_state,
     )
 
 
-def generate_and_go(ingredient_table, broth_label, texture_label, mode_label, allergen_text, num_people):
-    """生成方案并返回 (markdown, new_step, v0,v1,v2,v3, step1_message, plan_data, plan_text)。"""
+def generate_and_go(app_state, broth_label, texture_label, mode_label, allergen_text, num_people):
+    """生成方案并返回 (markdown, new_app_state, v0,v1,v2,v3, status)。plan_text 写入 app_state。"""
+    from frontend.state import AppState
+    app_state = app_state or AppState()
     md, step, plan_data = generate_plan_ui(
-        ingredient_table, broth_label, texture_label, mode_label, allergen_text, num_people=num_people,
+        app_state.ingredients, broth_label, texture_label, mode_label, allergen_text, num_people=num_people,
     )
-    if step == 2:
+    if step == 2 and plan_data is not None:
         plan_text = components.plan_to_share_text(plan_data) if plan_data else ""
-        return md, 2, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), "", plan_data, plan_text
-    return md, step, gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), md, None, ""
+        new_state = app_state.with_step(2).with_plan(plan_data).with_plan_text(plan_text)
+        return md, new_state, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), ""
+    new_state = app_state.with_step(1)
+    return md, new_state, gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), md
 
 
-def start_eating(plan_data):
-    """点击「开始吃饭」：进入步骤3，记录开始时间，预加载 TTS，返回底部文案与初始提醒。"""
+def start_eating(app_state):
+    """点击「开始吃饭」：进入步骤3，将开始时间与 last_beeped 写入 app_state，返回底部文案与初始提醒。"""
+    from frontend.state import AppState
+    app_state = app_state or AppState()
+    plan_data = app_state.plan_data
     if not plan_data or not plan_data.get("timeline"):
-        return (0, 2, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False),
-                "暂无方案数据，请先生成方案。", -1, -1,
+        return (app_state, gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False),
+                "暂无方案数据，请先生成方案。",
                 "<p style='color:#c0392b;padding:16px'>暂无方案数据，请先生成方案。</p>", "")
     import threading
     start_time = __import__("time").time()
@@ -356,8 +365,9 @@ def start_eating(plan_data):
     sauce = "\n".join(sauce_lines) if sauce_lines else "无"
     bottom_md = head + f"### 🚨 安全提醒\n{safety}\n\n### 💚 健康贴士\n{health}\n\n### 🥢 蘸料推荐\n{sauce}"
     initial_reminder = "<p style='color:#aaa;text-align:center;padding:32px;font-size:.95em'>⏱ 计时已启动，请按方案顺序开始下锅。</p>"
-    return (start_time, 3, gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=True),
-            bottom_md, -1, -1, initial_reminder, "")
+    new_state = app_state.with_step(3).with_timer_start(start_time)
+    return (new_state, gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=True),
+            bottom_md, initial_reminder, "")
 
 
 def search_ingredients_for_dropdown(query: str):

@@ -154,9 +154,7 @@ def homepage_html() -> str:
             "position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;"
             f"background-image:url({cover_data});"
             '"></div>'
-            '<div class="hp-poster-overlay" style="'
-            "position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.35);pointer-events:none;"
-            '"></div>'
+            '<div class="hp-poster-overlay"></div>'
         )
     else:
         cover_block = ""
@@ -179,13 +177,14 @@ def homepage_action_card_html() -> str:
 """
 
 def step_header_html(step_num: str, step_title: str, extra_cls: str = "") -> str:
-    """统一步骤头部横条（斜杠风格）。"""
+    """统一步骤头部横条（斜杠风格）。外层用于 CSS 排除米色底色。"""
     return (
+        f'<div class="shuai-step-header-wrap">'
         f'<div class="shuai-step-bar {extra_cls}">'
         f'<div class="shuai-step-wrapper">'
         f'<span class="shuai-step-num">/ {step_num} /</span>'
         f'<span class="shuai-step-title">{step_title}</span>'
-        f'</div></div>'
+        f'</div></div></div>'
     )
 
 def basket_drawer_html(state: list) -> str:
@@ -216,6 +215,25 @@ def basket_drawer_html(state: list) -> str:
             f'</div>'
         )
     return "\n".join(rows) if rows else '<p class="drawer-empty">无有效食材。</p>'
+
+
+def basket_bar_shell(count: int) -> str:
+    """只提供抽屉的样式外壳（底栏 + 遮罩），内部列表由原生组件填充。"""
+    badge = f'<span class="bsk-badge">{count}</span>' if count > 0 else ""
+    return f"""
+<div class="shuai-basket-area">
+  <div class="shuai-basket-bar" onclick="window.shuaiToggleDrawer(true)">
+    <div class="bsk-left">
+      <span class="bsk-icon">🛒{badge}</span>
+      <span class="bsk-preview">查看/修改已选食材</span>
+    </div>
+    <div class="bsk-right">
+      <span class="bsk-count">共 {count} 件</span>
+    </div>
+  </div>
+  <div class="shuai-overlay" id="shuai-global-overlay" onclick="window.shuaiToggleDrawer(false)"></div>
+</div>
+"""
 
 
 def basket_bar_html(count: int, state: list, is_open: bool = False) -> str:
@@ -256,25 +274,22 @@ def basket_bar_html(count: int, state: list, is_open: bool = False) -> str:
 """
 
 def boiling_result_html(icon: str, stage: str, description: str, advice: str) -> str:
-    """渲染开锅检测结果卡片。"""
+    """渲染开锅检测结果卡片。颜色由 assets/style.css 中 .status-box--* 类控制。"""
     if not stage:
         return ""
-    color_map = {
-        "沸腾":   ("#c0392b", "#fff5f5", "#ffd5d5"),
-        "微沸":   ("#e07c24", "#fff8f0", "#ffe5c0"),
-        "未沸":   ("#2980b9", "#f0f7ff", "#c8e0f8"),
-        "无法判断": ("#888",   "#f8f8f8", "#e8e8e8"),
-    }
-    text_color, bg_color, border_color = color_map.get(stage, ("#555", "#f8f8f8", "#ddd"))
-    desc_part = f'<p style="margin:4px 0 0;font-size:.82em;color:#666">{_html.escape(description)}</p>' if description else ""
-    adv_part  = (f'<p style="margin:6px 0 0;font-size:.88em;font-weight:600;color:{text_color}">{_html.escape(advice)}</p>'
-                 if advice else "")
+    stage_slug = {
+        "沸腾": "boiling",
+        "微沸": "simmer",
+        "未沸": "not-boiling",
+        "无法判断": "unknown",
+    }.get(stage, "default")
+    desc_part = f'<p class="status-box__desc">{_html.escape(description)}</p>' if description else ""
+    adv_part = f'<p class="status-box__adv">{_html.escape(advice)}</p>' if advice else ""
     return (
-        f'<div style="background:{bg_color};border:1.5px solid {border_color};'
-        f'border-radius:12px;padding:12px 16px;margin:6px 0;">'
-        f'<div style="display:flex;align-items:center;gap:8px;">'
-        f'<span style="font-size:1.8em;line-height:1">{icon}</span>'
-        f'<span style="font-size:1.05em;font-weight:700;color:{text_color}">{_html.escape(stage)}</span>'
+        f'<div class="status-box status-box--{stage_slug}">'
+        f'<div class="status-box__row">'
+        f'<span class="status-box__icon">{icon}</span>'
+        f'<span class="status-box__title">{_html.escape(stage)}</span>'
         f'</div>'
         f'{desc_part}{adv_part}'
         f'</div>'
@@ -320,11 +335,11 @@ def plan_to_share_text(plan_data: dict) -> str:
 def copy_plan_html(plan_text: str) -> str:
     """返回复制到剪贴板的 HTML+JS 片段。"""
     if not plan_text or not plan_text.strip():
-        return "<span style='color:#e67e22;font-size:.9em'>⚠️ 暂无方案内容，请先生成方案。</span>"
+        return '<span class="copy-empty-warn">⚠️ 暂无方案内容，请先生成方案。</span>'
     text_js = json.dumps(plan_text)
     uid = f"copy_btn_{int(time.time() * 1000) % 1000000}"
     return f"""
-<span id="{uid}_status" style="font-size:.88em;color:#27ae60"></span>
+<span id="{uid}_status" class="copy-status"></span>
 <script>
 (function() {{
   var text = {text_js};
@@ -355,16 +370,15 @@ def copy_plan_html(plan_text: str) -> str:
 """
 
 def generate_qr_html(plan_text: str) -> str:
-    """用 qrcode 库将方案摘要生成二维码 PNG，以 base64 内嵌 HTML 返回。"""
+    """用 qrcode 库将方案摘要生成二维码 PNG，以 base64 内嵌 HTML 返回。样式由 CSS 类控制。"""
     if not plan_text or not plan_text.strip():
-        return "<span style='color:#e67e22;font-size:.9em'>⚠️ 暂无方案内容，请先生成方案。</span>"
+        return '<span class="qr-empty-warn">⚠️ 暂无方案内容，请先生成方案。</span>'
     try:
         import qrcode as _qr
     except ImportError:
         return (
-            "<div style='padding:10px;border:1px solid #f0c040;border-radius:8px;"
-            "background:#fffde7;font-size:.88em;color:#7d6608'>"
-            "⚠️ 需要安装 qrcode[pil] 才能生成二维码：<br><code>pip install qrcode[pil]</code></div>"
+            '<div class="qr-install-warn">'
+            '⚠️ 需要安装 qrcode[pil] 才能生成二维码：<br><code>pip install qrcode[pil]</code></div>'
         )
     content = plan_text[:600]
     try:
@@ -376,23 +390,17 @@ def generate_qr_html(plan_text: str) -> str:
         img.save(buf, format="PNG")
         b64 = base64.b64encode(buf.getvalue()).decode("ascii")
         return (
-            "<div style='text-align:center;padding:10px 0'>"
-            f"<img src='data:image/png;base64,{b64}' "
-            "style='max-width:200px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12)'>"
-            "<div style='font-size:.78em;color:#999;margin-top:6px'>用微信扫码即可查看方案</div></div>"
+            '<div class="qr-img-wrap">'
+            f'<img src="data:image/png;base64,{b64}" alt="方案二维码">'
+            '<div class="qr-caption">用微信扫码即可查看方案</div></div>'
         )
     except Exception as e:
-        return f"<span style='color:#c0392b;font-size:.9em'>二维码生成失败：{e}</span>"
+        return f'<span class="qr-error">二维码生成失败：{_html.escape(str(e))}</span>'
 
 def flash_overlay_html(flash_duration_sec: float = 1.0) -> str:
-    """全屏闪烁 overlay HTML，用于下锅/捞出到点提醒。"""
+    """全屏闪烁 overlay HTML，用于下锅/捞出到点提醒。动画与背景在 assets/style.css 定义。"""
     return (
-        '<div class="hotpot-flash-overlay" style="'
-        "position:fixed;inset:0;z-index:9999;pointer-events:none;"
-        "background:rgba(255,140,0,0.35);"
-        f"animation:hotpot-flash-fade {flash_duration_sec}s ease-out forwards;"
-        '"></div>'
-        "<style>@keyframes hotpot-flash-fade { 0% { opacity: 1; } 100% { opacity: 0; } }</style>"
+        f'<div class="hotpot-flash-overlay" style="animation:hotpot-flash-fade {flash_duration_sec}s ease-out forwards;"></div>'
     )
 
 # 兼容 handlers 等使用的旧名称

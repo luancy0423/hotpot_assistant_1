@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-前端 UI 层
+前端 UI 层（四大支柱：声明式布局 + 统一状态 + 样式分离 + 响应式）
 只负责：① 用 Gradio 声明所有组件  ② 绑定事件到 handlers/nav/timer 的回调函数。
-不含任何业务逻辑，不直接调用 api.py。
 """
 
+import html as _html
+import os
 import gradio as gr
 
 from config import BROTH_CHOICES, TEXTURE_CHOICES, MODE_CHOICES
+from frontend.state import AppState, initial_app_state
 from frontend.components import (
     homepage_html, homepage_action_card_html, step_header_html,
-    basket_bar_html, boiling_result_html, add_ingredient_row,
+    basket_bar_shell, boiling_result_html, add_ingredient_row,
     copy_plan_html, generate_qr_html,
 )
 from frontend.parsers import (
@@ -27,113 +29,40 @@ from frontend.handlers import (
 )
 from frontend.timer import timer_tick
 
-# ── 样式表 ───────────────────────────────────────────────────────
-_CSS = """
-/* 网页最外层背景（深暗红） */
-body { font-family: 'Noto Sans SC', 'PingFang SC', sans-serif !important; background: #2b0505 !important; }
+# ── 样式表（支柱三：从 assets/style.css 加载）─────────────────────
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_CSS_PATH = os.path.join(_ROOT, "assets", "style.css")
+if os.path.isfile(_CSS_PATH):
+    with open(_CSS_PATH, "r", encoding="utf-8") as _f:
+        _CSS = _f.read()
+else:
+    _CSS = "/* fallback */\nbody{ font-family: sans-serif; }\n.gradio-container{ max-width: 450px; margin: 0 auto; }\n"
 
-/* 主容器 450×954 */
-.gradio-container {
-  width: 450px !important; max-width: 100% !important; min-height: 954px !important; height: 954px !important;
-  margin: 0 auto !important; padding: 0 !important; padding-bottom: 80px !important;
-  border: none !important; border-radius: 0 !important; overflow: auto !important;
-  background: #a31515 !important; display: flex !important; flex-direction: column !important;
-  position: relative !important; box-sizing: border-box !important;
-}
-@media (min-width: 500px) { .gradio-container { margin: 20px auto !important; border: 10px solid #111 !important; border-radius: 40px !important; } }
-.gradio-container > .main { flex: 1 !important; }
-.contain { padding: 0 !important; }
-footer  { display: none !important; }
-#page-home, #page-step0, #page-step1, #page-step2, #page-step3 { background: transparent !important; }
-
-/* 步骤头部及杂项 */
-.shuai-step-bar { background: linear-gradient(135deg, rgba(139,0,0,.75) 0%, rgba(163,21,21,.85) 50%, rgba(192,57,43,.7) 100%) !important; text-align: center !important; padding: 16px 20px !important; display: block !important; margin: 0 12px 16px !important; border-radius: 16px !important; border: 2px solid rgba(255,218,117,.45) !important; box-shadow: 0 4px 12px rgba(0,0,0,.25) !important; }
-.shuai-step-num   { display: block; font-family: 'Noto Serif SC', serif; font-size: 1.2em; color: #ffda75 !important; margin-bottom: 5px; letter-spacing: .15em; }
-.shuai-step-title { font-size: 1.5em; font-weight: 700; color: #ffffff !important; }
-
-/* 首页 */
-.hp-wrap { display: flex; flex-direction: column; align-items: stretch; }
-.hp-poster { position: relative; overflow: hidden; width: 100% !important; aspect-ratio: 99 / 140 !important; border-radius: 0 0 20px 20px; background: #2b0505; }
-.hp-poster-cover { position: absolute !important; inset: 0 !important; z-index: 0; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }
-#hp-action-block { background: #faf7f2 !important; border-radius: 20px !important; padding: 20px 24px 18px !important; margin: 16px 12px 12px !important; }
-.hp-action-line { font-size: .95em !important; color: #2a2a2a !important; letter-spacing: .12em !important; text-align: center !important; padding-bottom: 8px !important; border-bottom: 1px solid #e8e0d8 !important; margin-bottom: 8px !important; }
-.hp-action-sub { font-size: .9em !important; color: #555 !important; text-align: center !important; }
-#btn-enter-home button { height: 52px !important; border-radius: 26px !important; font-size: 1.1em !important; font-weight: 600 !important; letter-spacing: .15em !important; background: #faf7f2 !important; color: #1a1a1a !important; border: 2px solid #1a1a1a !important; width: 100% !important; }
-.hp-bounce { text-align: center; color: rgba(255,255,255,.6); font-size: .88em; margin: 8px 0 4px; animation: bounce 1.5s ease-in-out infinite; }
-@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
-
-/* 步骤1：食材输入 */
-#ing-card-group { background: white; margin: 12px; border-radius: 20px !important; padding: 20px !important; box-shadow: 0 4px 14px rgba(0,0,0,.2); border: none !important; }
-.ing-card-title { font-size: .78em; color: #e07c24; letter-spacing: .1em; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; }
-#img-rec-group { background: white; margin: 0 12px 10px; border-radius: 14px; padding: 0 14px 14px; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
-#merchant-status { margin: 0 12px; color: white; }
-#page-step0 #btn-merchant { margin: 4px 12px 8px; width: calc(100% - 24px); }
-#step0-next-row  { margin: 16px 12px 8px; justify-content: flex-end; }
-#ing-confirm-row { margin-top: 10px; gap: 10px; }
-#ing-confirm-row #btn-confirm-add { flex: 2 !important; }
-
-/* ── 购物车栏及抽屉 CSS（重构动画逻辑） ── */
-#basket-bar-row { background: #2a2424 !important; display: flex !important; align-items: center; justify-content: space-between; padding: 11px 16px; margin: 0; position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 450px; max-width: 100%; z-index: 50; box-sizing: border-box; }
-#basket-bar-row > div:first-child { flex: 1 !important; min-width: 0 !important; }
-#basket-bar-row .shuai-basket-bar { background: transparent !important; padding: 0; flex: 1; min-width: 0; }
-#basket-bar-row #btn-next-in-bar button { background: linear-gradient(135deg, #e07c24, #c0392b) !important; color: white !important; border: none; border-radius: 6px; padding: 7px 14px; font-size: .88em; }
-
-.shuai-basket-bar  { background: #2a2424; color: white; display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; cursor: pointer; }
-.bsk-left  { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; pointer-events: none; }
-.bsk-icon  { font-size: 1.25em; position: relative; flex-shrink: 0; }
-.bsk-badge { position: absolute; top: -5px; right: -7px; background: #e07c24; color: white; border-radius: 50%; font-size: .6em; width: 15px; height: 15px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-.bsk-preview { font-size: .8em; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bsk-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; pointer-events: none; }
-.bsk-count { font-size: 1em !important; font-weight: 600 !important; color: #fff !important; background: rgba(255,255,255,.1); padding: 4px 12px; border-radius: 20px; }
-
-.shuai-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 99998 !important; cursor: pointer; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
-.shuai-overlay.active { opacity: 1; visibility: visible; }
-
-.shuai-drawer  { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%); width: 450px; max-width: 100%; max-height: 68vh; background: white; border-radius: 18px 18px 0 0; z-index: 99999 !important; display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.32,0,.15,1); box-shadow: 0 -6px 36px rgba(0,0,0,.18); }
-.shuai-drawer.active { transform: translateX(-50%) translateY(0); }
-
-.shuai-drawer-handle { width: 38px; height: 4px; background: #ddd; border-radius: 2px; margin: 10px auto 6px; }
-.shuai-drawer-header { padding: 8px 20px 14px; border-bottom: 1px solid #f0ece8; display: flex; justify-content: space-between; align-items: center; color: black; }
-.shuai-drawer-title  { font-weight: 600; font-size: .97em; }
-.shuai-drawer-close  { background: none; border: none; font-size: 1.05em; cursor: pointer; color: #aaa; padding: 4px 8px; }
-.shuai-drawer-body   { overflow-y: auto; flex: 1; padding: 10px 20px; color: black; }
-.drawer-item  { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3efe9; }
-.di-info { display: flex; flex-direction: column; gap: 4px; }
-.di-name { font-weight: 500; font-size: .95em; color: #333; }
-.di-meta { font-size: .8em; color: #999; }
-.drawer-del-btn { background: transparent; border: none; font-size: 1.2em; color: #ccc; cursor: pointer; padding: 0 10px; }
-.drawer-del-btn:hover { color: #e74c3c; }
-.drawer-empty { color: #bbb; font-size: .88em; text-align: center; padding: 24px 0; }
-.shuai-drawer-footer { padding: 12px 20px; border-top: 1px solid #f0ece8; display: flex; justify-content: flex-end; }
-.shuai-drawer-next   { background: linear-gradient(135deg, #e07c24, #c0392b); color: white; border: none; border-radius: 24px; padding: 10px 28px; font-size: .93em; cursor: pointer; font-family: 'Noto Sans SC', sans-serif; font-weight: 500; }
-
-/* 隐藏后端挂载组件区：不使用 display:none，改用绝对定位隐藏，确保元素在 DOM 树内存活且能触发点击 */
-#hidden-func-wrap { position: absolute !important; left: -9999px !important; opacity: 0 !important; pointer-events: none !important; }
-
-/* 偏好、方案及其他 */
-.pref-acc { margin: 8px 12px !important; border-radius: 12px !important; overflow: hidden !important; box-shadow: 0 4px 14px rgba(0,0,0,.2) !important; border: none !important; background: white !important; }
-.pref-radio .wrap { display: flex !important; flex-wrap: wrap !important; padding: 10px 12px 14px !important; gap: 6px !important; }
-.pref-radio label:has(input:checked) { background: linear-gradient(135deg,#e07c24,#c0392b) !important; color: white !important; }
-#plan-scroll-wrap { background: white; margin: 12px; border-radius: 14px; padding: 16px 18px; max-height: 44vh; overflow-y: auto; color: black; }
-.eating-btn-wrap { display: flex; justify-content: center; padding: 18px 0 10px; }
-#btn-start-eating button { width: 112px !important; height: 112px !important; border-radius: 50% !important; background: linear-gradient(145deg,#e07c24 0%,#c0392b 100%) !important; color: white !important; }
-.block { border: none !important; box-shadow: none !important; }
-.gr-form { background: transparent !important; border: none !important; }
-"""
-
-# 全局原生 JavaScript 控制器，注入页面头部
+# 全局原生 JavaScript 控制器（支柱一：JS 仅负责抽屉升降动画）
 _HEAD_JS = """
 <script>
+  // 健壮的元素查找器：处理 Gradio 可能存在的 iframe 嵌套
+  function safeFind(selector) {
+    var el = document.querySelector(selector);
+    if (el) return el;
+    var frames = document.querySelectorAll('iframe');
+    for (var i = 0; i < frames.length; i++) {
+      try {
+        var d = frames[i].contentDocument || frames[i].contentWindow.document;
+        el = d.querySelector(selector);
+        if (el) return el;
+      } catch (e) {}
+    }
+    return null;
+  }
+
   window.shuaiToggleDrawer = function(show) {
-    var overlay = document.getElementById('shuai-global-overlay');
-    var drawer = document.getElementById('shuai-global-drawer');
+    var overlay = safeFind('#shuai-global-overlay');
+    var drawer = safeFind('#drawer-fixed-container');
     if (!overlay || !drawer) return;
     if (show) {
       overlay.style.display = 'block';
-      setTimeout(function() {
-        overlay.classList.add('active');
-        drawer.classList.add('active');
-      }, 10);
+      setTimeout(function() { overlay.classList.add('active'); drawer.classList.add('active'); }, 10);
     } else {
       overlay.classList.remove('active');
       drawer.classList.remove('active');
@@ -145,37 +74,11 @@ _HEAD_JS = """
     if(e) e.stopPropagation();
     window.shuaiToggleDrawer(false);
     setTimeout(function() {
-      var btnWrap = document.getElementById('btn-next-in-bar');
-      if (btnWrap) { var btn = btnWrap.querySelector('button'); if (btn) btn.click(); }
+      var btn = safeFind('#btn-next-in-bar button');
+      if (btn) btn.click();
     }, 150);
   };
 
-  // 核心：点击抽屉内食材行的删除按钮触发
-  window.shuaiDeleteIngredient = function(index) {
-    var inputWrap = document.getElementById('hidden-delete-index');
-    if (inputWrap) {
-      var input = inputWrap.querySelector('input') || inputWrap.querySelector('textarea');
-      if (input) {
-        // 使用原生 setter 强制绕过 Svelte 的数据拦截，确保更新能够被 Gradio 捕捉
-        var nativeSetter;
-        if (input.tagName.toLowerCase() === 'textarea') {
-          nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-        } else {
-          nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-        }
-        if (nativeSetter) {
-          nativeSetter.call(input, String(index));
-        } else {
-          input.value = String(index);
-        }
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-    }
-    setTimeout(function() {
-      var btnWrap = document.getElementById('btn-hidden-delete');
-      if (btnWrap) { var btn = btnWrap.querySelector('button'); if (btn) btn.click(); }
-    }, 50);
-  };
 </script>
 """
 
@@ -189,17 +92,8 @@ def create_ui():
         gr.HTML('<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900'
                 '&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">')
 
-        # ── States ───────────────────────────────────────────────
-        step_state           = gr.State(-1)
-        plan_data_state      = gr.State(None)
-        plan_text_state      = gr.State("")
-        start_time_state     = gr.State(0)
-        last_beeped_put      = gr.State(-1)
-        last_beeped_take     = gr.State(-1)
-        ingredient_table_state = gr.State([])
-        search_just_selected = gr.State(False)
-
-        NAV_OUT = [step_state, None, None, None, None, None]
+        # ── State（建议 4：单一 app_state，数据流一目了然）────────────────────
+        app_state = gr.State(initial_app_state())
 
         # ══════════════════════════════════════════════════════════
         # 首页
@@ -220,7 +114,6 @@ def create_ui():
             gr.HTML(step_header_html("第一步", "输入食材"))
 
             with gr.Group(elem_id="ing-card-group"):
-                gr.HTML('<div class="ing-card-title">新增食材</div>')
                 with gr.Row(elem_id="ing-input-top"):
                     with gr.Column(scale=3, elem_id="ing-text-col"):
                         ingredient_name_input = gr.Textbox(label="🖊 食材名称", placeholder="如：毛肚、肥牛", lines=1, elem_id="ing-name-tb")
@@ -249,15 +142,52 @@ def create_ui():
                 gr.HTML("")
                 btn_next_visible = gr.Button("下一步 ›", variant="primary", elem_id="btn-next-visible")
 
-            # 底部悬浮购物车
+            # 底部悬浮栏（仅外壳，由 basket_bar_shell 提供）
             with gr.Row(elem_id="basket-bar-row"):
-                basket_bar_html_comp = gr.HTML(value=basket_bar_html(0, []), elem_id="basket-bar-html")
+                basket_bar_html_comp = gr.HTML(value=basket_bar_shell(0), elem_id="basket-bar-html")
                 btn_next_bar         = gr.Button("下一步 ›", variant="primary", elem_id="btn-next-in-bar")
 
-            # 隐藏组件区：接收前端抽屉内点击“X”传来的索引，由 CSS 的 left: -9999px 隐藏
-            with gr.Group(elem_id="hidden-func-wrap"):
-                hidden_delete_index = gr.Textbox(elem_id="hidden-delete-index")
-                btn_hidden_delete   = gr.Button(elem_id="btn-hidden-delete")
+            # 抽屉：原生 Column + @gr.render（支柱一：声明式，删除为原生 gr.Button）
+            with gr.Column(elem_id="drawer-fixed-container"):
+                gr.HTML('<div class="handle"></div>')
+                gr.HTML(
+                    '<div class="drawer-header-row">'
+                    '<span class="drawer-title">已选食材</span>'
+                    '<button type="button" class="drawer-close-btn" onclick="window.shuaiToggleDrawer(false)" title="关闭">✕ 关闭</button>'
+                    '</div>'
+                )
+                with gr.Column(elem_id="drawer-list-wrap"):
+                    @gr.render(inputs=[app_state])
+                    def render_cart(state):
+                        items = (state or initial_app_state()).ingredients
+                        if not items:
+                            gr.Markdown("购物车是空的哦~", elem_classes=["drawer-empty-msg"])
+                            return
+                        for i, item in enumerate(items):
+                            name = (item[0] if item else "") or ""
+                            if not name:
+                                continue
+                            t_val = item[1] if len(item) > 1 else None
+                            portion = int(item[2]) if len(item) > 2 and item[2] else 1
+                            try:
+                                t = int(float(t_val)) if t_val and str(t_val).strip() not in ("", "0", "0.0") else 0
+                            except (TypeError, ValueError):
+                                t = 0
+                            t_disp = f"{t}秒" if t > 0 else "库默认"
+                            with gr.Row(elem_classes=["cart-row", "drawer-item-row"]):
+                                gr.Markdown(f"**{_html.escape(str(name))}**\n{t_disp} · {portion}份")
+                                del_btn = gr.Button("✕", elem_classes=["drawer-del-btn-native", "del-icon"], scale=0)
+                                def make_delete(index):
+                                    def delete_item(s):
+                                        s = s or initial_app_state()
+                                        new_ing = list(s.ingredients)
+                                        if 0 <= index < len(new_ing):
+                                            new_ing.pop(index)
+                                        new_s = s.with_ingredients(new_ing)
+                                        return new_s, basket_bar_shell(len(new_ing))
+                                    return delete_item
+                                del_btn.click(make_delete(i), inputs=[app_state], outputs=[app_state, basket_bar_html_comp])
+                btn_next_in_drawer = gr.Button("确认方案 ›", variant="primary", elem_id="btn-next-in-drawer")
 
         # ══════════════════════════════════════════════════════════
         # 步骤2：锅底与偏好
@@ -267,22 +197,22 @@ def create_ui():
             gr.HTML(step_header_html("第二步", "选择你的口味"))
             broth_acc = gr.Accordion("🍲 锅底类型", open=True, elem_classes=["pref-acc", "pref-acc--hero"])
             with broth_acc:
-                broth_dd = gr.Radio(choices=[t for t, _ in BROTH_CHOICES], value="麻辣红汤", label="", elem_classes=["pref-radio"])
+                broth_dd = gr.Radio(choices=[t for t, _ in BROTH_CHOICES], value="麻辣红汤", label="", show_label=False, elem_classes=["pref-radio"], elem_id="pref-broth")
             texture_acc = gr.Accordion("🌶 口感偏好", open=True, elem_classes=["pref-acc"])
             with texture_acc:
-                texture_dd = gr.Radio(choices=[t for t, _ in TEXTURE_CHOICES], value="标准", label="", elem_classes=["pref-radio"])
+                texture_dd = gr.Radio(choices=[t for t, _ in TEXTURE_CHOICES], value="标准", label="", show_label=False, elem_classes=["pref-radio"], elem_id="pref-texture")
             mode_acc = gr.Accordion("👤 用户模式", open=True, elem_classes=["pref-acc"])
             with mode_acc:
-                mode_dd = gr.Radio(choices=[t for t, _ in MODE_CHOICES], value="普通", label="", elem_classes=["pref-radio"])
+                mode_dd = gr.Radio(choices=[t for t, _ in MODE_CHOICES], value="普通", label="", show_label=False, elem_classes=["pref-radio"], elem_id="pref-mode")
             with gr.Row(elem_id="pref-half-row"):
                 with gr.Column():
                     allergen_acc = gr.Accordion("⚠️ 过敏原", open=False, elem_classes=["pref-acc"])
                     with allergen_acc:
-                        allergen_input = gr.Textbox(label="", placeholder="如：虾、鱼", lines=1)
+                        allergen_input = gr.Textbox(label="", placeholder="如：虾、鱼", lines=1, show_label=False, elem_id="pref-allergen")
                 with gr.Column():
                     people_acc = gr.Accordion("👥 就餐人数", open=False, elem_classes=["pref-acc"])
                     with people_acc:
-                        num_people_input = gr.Number(label="", value=2, minimum=1, maximum=99, step=1, precision=0)
+                        num_people_input = gr.Number(label="", value=2, minimum=1, maximum=99, step=1, precision=0, show_label=False, elem_id="pref-people")
             load_pref_btn = gr.Button("📂 加载我的偏好", size="sm", elem_id="load-pref-btn")
             pref_status   = gr.Markdown("", elem_id="pref_status")
             result_status = gr.Markdown("", elem_id="result_status")
@@ -329,85 +259,79 @@ def create_ui():
         # ══════════════════════════════════════════════════════════
         # 后端交互与数据流绑定
         # ══════════════════════════════════════════════════════════
-        _nav_outputs = [step_state, step_home, step0, step1, step2, step3]
+        _nav_outputs = [app_state, step_home, step0, step1, step2, step3]
 
-        btn_enter.click(
-            fn=lambda: (0, gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)),
-            inputs=[], outputs=_nav_outputs,
-        )
+        def _enter_step0(s):
+            st = s if isinstance(s, AppState) else initial_app_state()
+            return (st.with_step(0), gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False))
+        btn_enter.click(fn=_enter_step0, inputs=[app_state], outputs=_nav_outputs)
 
-        def _on_name_change(name_val, just_sel):
+        def _on_name_change(name_val, s):
+            st = s or initial_app_state()
             try:
-                if just_sel: return gr.update(), gr.update(), False
+                if getattr(st, "search_just_selected", False):
+                    return gr.update(), gr.update(), st.with_search_just_selected(False)
                 choices = search_ingredients_for_dropdown(name_val)
                 hint    = ingredient_lookup_hint(name_val, None)
-                return gr.update(choices=choices, value=None), hint, False
+                return gr.update(choices=choices, value=None), hint, st.with_search_just_selected(False)
             except Exception:
-                return gr.update(choices=[], value=None), "", False
-        ingredient_name_input.change(fn=_on_name_change, inputs=[ingredient_name_input, search_just_selected], outputs=[ingredient_search_dd, ingredient_default_hint, search_just_selected])
+                return gr.update(choices=[], value=None), "", st
+        ingredient_name_input.change(fn=_on_name_change, inputs=[ingredient_name_input, app_state], outputs=[ingredient_search_dd, ingredient_default_hint, app_state])
 
         ingredient_time_input.change(fn=lambda n, t: ingredient_lookup_hint(n, t), inputs=[ingredient_name_input, ingredient_time_input], outputs=[ingredient_default_hint])
 
-        def _on_search_select(v):
+        def _on_search_select(v, s):
+            st = s or initial_app_state()
             try:
-                if v and str(v).strip(): return str(v).strip(), gr.update(choices=[], value=None), True
-                return gr.update(), gr.update(choices=[], value=None), False
+                if v and str(v).strip():
+                    return str(v).strip(), gr.update(choices=[], value=None), st.with_search_just_selected(True)
+                return gr.update(), gr.update(choices=[], value=None), st.with_search_just_selected(False)
             except Exception:
-                return gr.update(), gr.update(), False
-        ingredient_search_dd.change(fn=_on_search_select, inputs=[ingredient_search_dd], outputs=[ingredient_name_input, ingredient_search_dd, search_just_selected])
+                return gr.update(), gr.update(), st
+        ingredient_search_dd.change(fn=_on_search_select, inputs=[ingredient_search_dd, app_state], outputs=[ingredient_name_input, ingredient_search_dd, app_state])
 
-        # 添加食材：更新购物车 HTML（add_ingredient_row 返回 7 元组，需解包）
-        def _add_v4(name, t, p, state):
+        # 添加食材：更新 app_state.ingredients 与外壳数量
+        def _add_v4(name, t, p, s):
+            s = s or initial_app_state()
             try:
-                state, _, _, nt, np_, _, _ = add_ingredient_row(name, t, p, state)
-                return (state, "", nt, np_, "", basket_bar_html(len(state), state, is_open=False))
+                new_list, _, _, nt, np_, _, _ = add_ingredient_row(name, t, p, s.ingredients)
+                new_s = s.with_ingredients(new_list)
+                return (new_s, "", nt, np_, "", basket_bar_shell(len(new_list)))
             except Exception as e:
-                return (state or [], f"❌ 错误：{e}", 0, 1, "", basket_bar_html(len(state or []), state or [], False))
+                return (s, f"❌ 错误：{e}", 0, 1, "", basket_bar_shell(len(s.ingredients)))
 
-        btn_add_row.click(fn=_add_v4, inputs=[ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_table_state],
-                          outputs=[ingredient_table_state, ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_default_hint, basket_bar_html_comp])
+        btn_add_row.click(fn=_add_v4, inputs=[ingredient_name_input, ingredient_time_input, ingredient_portion_input, app_state],
+                          outputs=[app_state, ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_default_hint, basket_bar_html_comp])
         btn_reject_input.click(fn=lambda: ("", 0, 1, ""), inputs=[], outputs=[ingredient_name_input, ingredient_time_input, ingredient_portion_input, ingredient_default_hint])
 
-        # 核心改动：响应抽屉内的删除操作；返回 "" 重置 hidden_delete_index，防止连续删同一行不触发
-        def _do_hidden_delete(idx_str, state):
-            state = list(state or [])
+        def _img_v4(img, s):
+            s = s or initial_app_state()
             try:
-                idx = int(idx_str)
-                if 0 <= idx < len(state):
-                    state.pop(idx)
-            except Exception:
-                pass
-            return (state, basket_bar_html(len(state), state, is_open=True), "")
-
-        btn_hidden_delete.click(
-            fn=_do_hidden_delete,
-            inputs=[hidden_delete_index, ingredient_table_state],
-            outputs=[ingredient_table_state, basket_bar_html_comp, hidden_delete_index],
-        )
-
-        def _img_v4(img, state):
-            try:
-                state, _, status, _ = image_to_ingredients(img, state)
-                return (state, status, basket_bar_html(len(state), state))
+                new_list, _, status, _ = image_to_ingredients(img, s.ingredients)
+                new_s = s.with_ingredients(new_list)
+                return (new_s, status, basket_bar_shell(len(new_list)))
             except Exception as e:
-                return (state or [], f"❌ {e}", basket_bar_html(len(state or []), state or []))
-        btn_image.click(fn=_img_v4, inputs=[image_input, ingredient_table_state], outputs=[ingredient_table_state, image_status, basket_bar_html_comp])
+                return (s, f"❌ {e}", basket_bar_shell(len(s.ingredients)))
+        btn_image.click(fn=_img_v4, inputs=[image_input, app_state], outputs=[app_state, image_status, basket_bar_html_comp])
 
-        def _voice_v4(audio, state):
+        def _voice_v4(audio, s):
+            s = s or initial_app_state()
             try:
-                state, _, status, _ = voice_to_ingredients(audio, state)
-                return (state, status, basket_bar_html(len(state), state))
+                new_list, _, status, _ = voice_to_ingredients(audio, s.ingredients)
+                new_s = s.with_ingredients(new_list)
+                return (new_s, status, basket_bar_shell(len(new_list)))
             except Exception as e:
-                return (state or [], f"❌ {e}", basket_bar_html(len(state or []), state or []))
-        btn_voice.click(fn=_voice_v4, inputs=[voice_input, ingredient_table_state], outputs=[ingredient_table_state, voice_status, basket_bar_html_comp])
+                return (s, f"❌ {e}", basket_bar_shell(len(s.ingredients)))
+        btn_voice.click(fn=_voice_v4, inputs=[voice_input, app_state], outputs=[app_state, voice_status, basket_bar_html_comp])
 
-        def _merchant_v4(state):
-            state = state or []
-            return (state, "⚠️ 暂未适配商家点餐系统，敬请期待。", basket_bar_html(len(state), state))
-        btn_merchant.click(fn=_merchant_v4, inputs=[ingredient_table_state], outputs=[ingredient_table_state, merchant_status, basket_bar_html_comp])
+        def _merchant_v4(s):
+            s = s or initial_app_state()
+            return (s, "⚠️ 暂未适配商家点餐系统，敬请期待。", basket_bar_shell(len(s.ingredients)))
+        btn_merchant.click(fn=_merchant_v4, inputs=[app_state], outputs=[app_state, merchant_status, basket_bar_html_comp])
 
-        btn_next_bar.click(fn=nav_next_v4, inputs=[step_state], outputs=_nav_outputs)
-        btn_next_visible.click(fn=nav_next_v4, inputs=[step_state], outputs=_nav_outputs)
+        btn_next_bar.click(fn=nav_next_v4, inputs=[app_state], outputs=_nav_outputs)
+        btn_next_visible.click(fn=nav_next_v4, inputs=[app_state], outputs=_nav_outputs)
+        btn_next_in_drawer.click(fn=nav_next_v4, inputs=[app_state], outputs=_nav_outputs)
 
         broth_dd.change(fn=lambda v: gr.update(label=f"🍲 锅底类型　✓ {v}"), inputs=[broth_dd], outputs=[broth_acc])
         texture_dd.change(fn=lambda v: gr.update(label=f"🌶 口感偏好　✓ {v}"), inputs=[texture_dd], outputs=[texture_acc])
@@ -422,17 +346,21 @@ def create_ui():
                     gr.update(label=f"👤 用户模式　✓ {mode}"), gr.update(label=f"⚠️ 过敏原　{allergen.strip() or '无'}"))
         load_pref_btn.click(fn=_load_pref_v4, inputs=[], outputs=[broth_dd, texture_dd, mode_dd, allergen_input, num_people_input, pref_status, broth_acc, texture_acc, mode_acc, allergen_acc])
 
-        btn_prev.click(fn=nav_prev_v4, inputs=[step_state], outputs=_nav_outputs)
+        btn_prev.click(fn=nav_prev_v4, inputs=[app_state], outputs=_nav_outputs)
 
-        btn_generate.click(fn=show_generating, inputs=[], outputs=[output_md, step_state, step0, step1, step2, step3, result_status]
-        ).then(fn=generate_and_go, inputs=[ingredient_table_state, broth_dd, texture_dd, mode_dd, allergen_input, num_people_input],
-               outputs=[output_md, step_state, step0, step1, step2, step3, result_status, plan_data_state, plan_text_state])
+        btn_generate.click(fn=show_generating, inputs=[app_state], outputs=[output_md, step0, step1, step2, step3, result_status, app_state]
+        ).then(fn=generate_and_go, inputs=[app_state, broth_dd, texture_dd, mode_dd, allergen_input, num_people_input],
+               outputs=[output_md, app_state, step0, step1, step2, step3, result_status])
 
-        btn_copy_plan.click(fn=copy_plan_html, inputs=[plan_text_state], outputs=[copy_status_html])
-        btn_gen_qr.click(fn=generate_qr_html, inputs=[plan_text_state], outputs=[qr_html])
-        btn_restart.click(fn=nav_restart_v4, inputs=[step_state], outputs=_nav_outputs)
-        btn_prev2.click(fn=nav_prev_v4, inputs=[step_state], outputs=_nav_outputs)
-        btn_start_eating.click(fn=start_eating, inputs=[plan_data_state], outputs=[start_time_state, step_state, step0, step1, step2, step3, timer_bottom_md, last_beeped_put, last_beeped_take, timer_reminder_md, timer_beep_html])
+        def _copy_plan_from_state(s):
+            return copy_plan_html(getattr(s, "plan_text", "") or "" if s else "")
+        def _qr_from_state(s):
+            return generate_qr_html(getattr(s, "plan_text", "") or "" if s else "")
+        btn_copy_plan.click(fn=_copy_plan_from_state, inputs=[app_state], outputs=[copy_status_html])
+        btn_gen_qr.click(fn=_qr_from_state, inputs=[app_state], outputs=[qr_html])
+        btn_restart.click(fn=nav_restart_v4, inputs=[app_state], outputs=_nav_outputs)
+        btn_prev2.click(fn=nav_prev_v4, inputs=[app_state], outputs=_nav_outputs)
+        btn_start_eating.click(fn=start_eating, inputs=[app_state], outputs=[app_state, step0, step1, step2, step3, timer_bottom_md, timer_reminder_md, timer_beep_html])
 
         def _do_detect_boiling(img_path):
             import os as _os
@@ -447,8 +375,17 @@ def create_ui():
             return boiling_result_html(icon, d.get("stage", ""), d.get("description", ""), d.get("advice", ""))
         btn_detect_boiling.click(fn=_do_detect_boiling, inputs=[boiling_image], outputs=[boiling_result])
 
-        btn_back_from_timer.click(fn=nav_back_timer_v4, inputs=[step_state, start_time_state], outputs=_nav_outputs)
-        gr.Timer(value=1).tick(fn=timer_tick, inputs=[plan_data_state, start_time_state, last_beeped_put, last_beeped_take], outputs=[timer_reminder_md, last_beeped_put, last_beeped_take, timer_beep_html])
+        def _timer_tick_wrapper(s):
+            st = s or initial_app_state()
+            plan = st.plan_data if hasattr(st, "plan_data") else None
+            start = getattr(st, "timer_start_time", 0) or 0
+            put = getattr(st, "last_beeped_put", -1) or -1
+            take = getattr(st, "last_beeped_take", -1) or -1
+            reminder, new_put, new_take, beep = timer_tick(plan, start, put, take)
+            new_st = st.with_last_beeped(new_put, new_take)
+            return new_st, reminder, beep
+        btn_back_from_timer.click(fn=nav_back_timer_v4, inputs=[app_state], outputs=_nav_outputs)
+        gr.Timer(value=1).tick(fn=_timer_tick_wrapper, inputs=[app_state], outputs=[app_state, timer_reminder_md, timer_beep_html])
 
     return demo
 
@@ -457,6 +394,7 @@ def launch_demo():
     """创建界面并启动服务（app.py 部署入口调用）。"""
     from config import SERVER_NAME, SERVER_PORT, GRADIO_SHARE
     demo = create_ui()
+    # 主题仅为 Gradio 组件默认高亮色，实际颜色以 assets/style.css 中 :root 变量为准
     demo.launch(
         server_name=SERVER_NAME,
         server_port=SERVER_PORT,

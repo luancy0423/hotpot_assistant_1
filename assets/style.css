@@ -1,0 +1,650 @@
+/* ═══════════════════════════════════════════════════════════════════
+   涮涮AI - 声明式样式表
+   颜色与尺寸单一事实来源：仅在此 :root 中定义色值与关键尺寸
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 尺寸（Layout & Sizing）单一事实来源 ── */
+  --app-max-width: 450px;
+  --app-bottom-padding: 80px;
+  --app-breakpoint: 500px;
+  --app-frame-border: 10px;
+  --app-frame-radius: 40px;
+  --card-margin: 12px;
+  --card-padding: 20px;
+  --card-padding-lg: 20px 24px 18px;
+  --card-radius: 20px;
+  --card-radius-md: 14px;
+  --card-radius-sm: 12px;
+  --card-radius-xs: 8px;
+  --card-padding-sm: 12px;
+  --header-step-padding: 16px 20px;
+  --header-step-margin: 0 12px 16px;
+  --btn-enter-height: 52px;
+  --btn-enter-radius: 26px;
+  --btn-circle-size: 112px;
+  --drawer-max-height: 68vh;
+  --drawer-padding: 20px;
+  --drawer-radius: 24px;
+  --drawer-handle-width: 38px;
+  --drawer-handle-height: 4px;
+  --plan-scroll-max-height: 44vh;
+  --bar-padding: 11px 16px;
+  --basket-badge-size: 15px;
+  --poster-aspect-w: 99;
+  --poster-aspect-h: 140;
+
+  /* ── 主色调：火锅核心颜色 ── */
+  --hotpot-red-dark: #2b0505;
+  --hotpot-red-main: #a31515;
+  --hotpot-red-bright: #c0392b;
+  --hotpot-gold: #ffda75;
+  --hotpot-orange: #e65c00;
+  --hotpot-orange-soft: #e07c24;
+  --hotpot-white: #ffffff;
+  --hotpot-black: #1a1a1a;
+  --hotpot-gray: #999999;
+  --hotpot-gray-light: #ddd;
+  --hotpot-gray-border: #eee;
+  --hotpot-overlay: rgba(0, 0, 0, 0.6);
+  --hotpot-overlay-poster: rgba(0, 0, 0, 0.35);
+  --hotpot-shadow: rgba(0, 0, 0, 0.2);
+  --hotpot-shadow-strong: rgba(0, 0, 0, 0.25);
+  --hotpot-cell-bg: rgba(237, 235, 222, 1);
+  --hotpot-bar: #2a2424;
+  --hotpot-btn-light: #faf7f2;
+
+  /* 兼容旧变量名 */
+  --shuai-width: var(--app-max-width);
+  --shuai-bg: var(--hotpot-red-main);
+  --shuai-bg-dark: var(--hotpot-red-dark);
+  --shuai-bar: var(--hotpot-bar);
+  --shuai-accent: var(--hotpot-orange-soft);
+  --shuai-accent-2: var(--hotpot-red-bright);
+  --shuai-gold: var(--hotpot-gold);
+  --shuai-radius: 16px;
+  --shuai-shadow: 0 4px 14px var(--hotpot-shadow);
+  --shuai-cell-bg: var(--hotpot-cell-bg);
+}
+
+/* ── 基础与布局 ───────────────────────────────────────────────── */
+body {
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif !important;
+  background: var(--shuai-bg-dark) !important;
+}
+
+/* 顶层容器：仅对易被 Gradio 覆盖的键使用 !important */
+.gradio-container {
+  width: 100% !important;
+  max-width: var(--app-max-width) !important;
+  min-height: 100dvh;
+  height: 100dvh;
+  margin: 0 auto;
+  padding: 0 !important;
+  padding-bottom: var(--app-bottom-padding) !important;
+  border: none;
+  border-radius: 0;
+  overflow: auto;
+  background: var(--shuai-bg);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-sizing: border-box;
+}
+
+@media (min-width: 500px) {
+  .gradio-container {
+    margin: 20px auto;
+    border: var(--app-frame-border) solid var(--hotpot-black);
+    border-radius: var(--app-frame-radius);
+  }
+}
+
+.gradio-container > .main { flex: 1 !important; }
+.contain { padding: 0 !important; }
+footer { display: none !important; }
+
+#page-home, #page-step0, #page-step1, #page-step2, #page-step3 {
+  background: transparent !important;
+}
+/* 顶端栏/标题栏：Gradio 顶层或含步骤头的块均不染米色 */
+.gradio-container .contain,
+.gradio-container .main,
+.gradio-container .main > div {
+  background: transparent !important;
+}
+
+/* ── 步骤头部（红底金字/白字）──────────────────────────────────────────── */
+.shuai-step-bar,
+#page-step0 .shuai-step-bar,
+#page-step1 .shuai-step-bar,
+#page-step2 .shuai-step-bar,
+#page-step3 .shuai-step-bar {
+  background: linear-gradient(135deg, rgba(139,0,0,.75) 0%, rgba(163,21,21,.85) 50%, rgba(192,57,43,.7) 100%);
+  text-align: center;
+  padding: var(--header-step-padding);
+  display: block;
+  margin: var(--header-step-margin);
+  border-radius: var(--shuai-radius);
+  border: 2px solid rgba(255,218,117,.45);
+  box-shadow: 0 4px 12px var(--hotpot-shadow-strong);
+}
+.shuai-overlay { background: var(--hotpot-overlay) !important; }
+.shuai-step-num {
+  display: block;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.2em;
+  color: var(--shuai-gold) !important;
+  margin-bottom: 5px;
+  letter-spacing: .15em;
+}
+.shuai-step-title {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: var(--hotpot-white) !important;
+}
+
+/* ── 首页 ─────────────────────────────────────────────────────── */
+.hp-wrap { display: flex; flex-direction: column; align-items: stretch; }
+.hp-poster {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: var(--poster-aspect-w) / var(--poster-aspect-h);
+  border-radius: 0 0 var(--card-radius) var(--card-radius);
+  background: var(--shuai-bg-dark);
+}
+.hp-poster-cover {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+#hp-action-block {
+  background: var(--shuai-cell-bg);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding-lg);
+  margin: 16px var(--card-margin) var(--card-margin);
+  color: var(--hotpot-black);
+}
+#hp-action-block .hp-action-line,
+#hp-action-block .hp-action-sub { color: #111 !important; }
+.hp-action-line {
+  font-size: .95em !important;
+  color: #111 !important;
+  letter-spacing: .12em !important;
+  text-align: center !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid #e8e0d8 !important;
+  margin-bottom: 8px !important;
+}
+.hp-action-sub { font-size: .9em !important; color: #111 !important; text-align: center !important; }
+#btn-enter-home button {
+  height: var(--btn-enter-height);
+  border-radius: var(--btn-enter-radius);
+  font-size: 1.1em;
+  font-weight: 600;
+  letter-spacing: .15em;
+  background: var(--hotpot-btn-light);
+  color: var(--hotpot-black);
+  border: 2px solid var(--hotpot-black);
+  width: 100%;
+}
+.hp-bounce {
+  text-align: center;
+  color: rgba(255,255,255,.6);
+  font-size: .88em;
+  margin: 8px 0 4px;
+  animation: bounce 1.5s ease-in-out infinite;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+/* ── 步骤1/第一步：食材输入（格子底色 + 黑色字体）────────────────── */
+/* 精确 ID + Gradio 可能带数字后缀的 id */
+#ing-card-group,
+[id^="ing-card-group"],
+[id*="ing-card-group"] {
+  background: var(--shuai-cell-bg);
+  margin: var(--card-margin);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  box-shadow: var(--shuai-shadow);
+  border: none;
+  color: var(--hotpot-black);
+}
+#ing-card-group label,
+#ing-card-group .ing-card-title,
+#ing-card-group input,
+#ing-card-group .wrap,
+[id*="ing-card-group"] label,
+[id*="ing-card-group"] .ing-card-title,
+[id*="ing-card-group"] input { color: #111 !important; }
+.ing-card-title {
+  font-size: .78em;
+  color: #111 !important;
+  letter-spacing: .1em;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+#img-rec-group,
+[id^="img-rec-group"],
+[id*="img-rec-group"] {
+  background: var(--shuai-cell-bg);
+  margin: 0 var(--card-margin) 10px;
+  border-radius: var(--card-radius-md);
+  padding: 0 14px 14px;
+  box-shadow: var(--shuai-shadow);
+  color: var(--hotpot-black);
+}
+#img-rec-group label,
+[id*="img-rec-group"] label { color: #111 !important; }
+/* 第一步：食材名称/搜索补全/涮煮时间/份数/语音/识图 强制白底去橙（覆盖主题） */
+#page-step0 #ing-card-group,
+#page-step0 #img-rec-group {
+  --input-background-fill: var(--hotpot-white) !important;
+  --background-fill-primary: var(--hotpot-white) !important;
+  --background-fill-secondary: var(--hotpot-white) !important;
+}
+#ing-card-group input,
+#ing-card-group select,
+#ing-card-group textarea,
+#ing-card-group .gr-box,
+#ing-card-group .gr-form,
+#ing-card-group [class*="wrap"],
+[id*="ing-card-group"] input,
+[id*="ing-card-group"] select,
+[id*="ing-card-group"] .gr-box,
+[id*="ing-card-group"] .gr-form,
+#img-rec-group input,
+#img-rec-group select,
+#img-rec-group textarea,
+#img-rec-group .gr-box,
+#img-rec-group .gr-form,
+[id*="img-rec-group"] .gr-box,
+[id*="img-rec-group"] .gr-form {
+  background: var(--hotpot-white) !important;
+  background-color: var(--hotpot-white) !important;
+  border-color: var(--hotpot-gray-light) !important;
+  box-shadow: none !important;
+}
+#ing-card-group input:focus,
+#ing-card-group select:focus,
+#img-rec-group input:focus { border-color: var(--hotpot-gray) !important; outline: none !important; }
+#merchant-status { margin: 0 var(--card-margin); color: var(--hotpot-white); }
+
+/* 第一步：仅步骤内文案/控件颜色，米色只用在 #ing-card-group / #img-rec-group（见上） */
+#page-step0 label,
+#page-step0 input,
+#page-step0 .label,
+#page-step0 p,
+#page-step0 span { color: var(--hotpot-black); }
+.shuai-step-header-wrap { background: transparent; }
+#basket-bar-row > div,
+#basket-bar-row [class*="block"] { background: transparent; }
+#basket-bar-row .shuai-basket-area,
+#basket-bar-row .shuai-basket-bar { background: var(--shuai-bar) !important; }
+#page-step0 #btn-merchant {
+  margin: 0 var(--card-margin) 8px;
+  width: calc(100% - 2 * var(--card-margin));
+  max-width: none;
+  box-sizing: border-box;
+}
+#step0-next-row { margin: 16px var(--card-margin) 8px; justify-content: flex-end; }
+#ing-confirm-row { margin-top: 10px; gap: 10px; }
+#ing-confirm-row #btn-confirm-add { flex: 2 !important; }
+
+/* ── 购物车底栏与遮罩 ──────────────────────────────────────────────────── */
+#basket-bar-row,
+#basket-bar-row .shuai-basket-area,
+#basket-bar-row .shuai-basket-bar {
+  background: var(--shuai-bar) !important;
+}
+#basket-bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--bar-padding);
+  margin: 0;
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--app-max-width);
+  z-index: 50;
+  box-sizing: border-box;
+}
+#basket-bar-row > div:first-child { flex: 1; min-width: 0; }
+#basket-bar-row .shuai-basket-bar { background: transparent; padding: 0; flex: 1; min-width: 0; }
+#basket-bar-row #btn-next-in-bar button {
+  background: linear-gradient(135deg, var(--shuai-accent), var(--shuai-accent-2));
+  color: var(--hotpot-white);
+  border: none;
+  border-radius: var(--card-radius-xs);
+  padding: 7px 14px;
+  font-size: .88em;
+}
+
+.shuai-basket-area,
+.shuai-basket-bar {
+  background: var(--shuai-bar);
+  color: var(--hotpot-white);
+}
+.shuai-basket-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--bar-padding);
+  cursor: pointer;
+}
+.bsk-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; pointer-events: none; }
+.bsk-icon { font-size: 1.25em; position: relative; flex-shrink: 0; color: var(--hotpot-white); }
+.bsk-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  background: var(--shuai-accent);
+  color: var(--hotpot-white);
+  border-radius: 50%;
+  font-size: .6em;
+  width: var(--basket-badge-size);
+  height: var(--basket-badge-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+.bsk-preview {
+  font-size: .8em;
+  color: rgba(255,255,255,.65) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bsk-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; pointer-events: none; }
+.bsk-count {
+  font-size: 1em !important;
+  font-weight: 600 !important;
+  color: var(--hotpot-white) !important;
+  background: rgba(255,255,255,.1);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.shuai-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--hotpot-overlay);
+  z-index: 99998 !important;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.shuai-overlay.active { opacity: 1; visibility: visible; }
+
+/* ── 原生抽屉容器（白底，不用米色；抽屉内组件同白底）────────────────── */
+#drawer-fixed-container,
+#drawer-fixed-container .gr-box,
+#drawer-fixed-container .gr-form,
+#drawer-fixed-container .block,
+#drawer-fixed-container .wrap,
+#drawer-fixed-container [class*="block"] {
+  background: var(--hotpot-white);
+}
+#drawer-fixed-container {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%;
+  max-width: var(--app-max-width);
+  max-height: var(--drawer-max-height);
+  z-index: 99999;
+  border-radius: var(--drawer-radius) var(--drawer-radius) 0 0;
+  transition: transform 0.3s cubic-bezier(0.32, 0, 0.15, 1);
+  padding: var(--drawer-padding);
+  box-shadow: 0 -10px 30px var(--hotpot-shadow);
+  color: var(--hotpot-black);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#drawer-fixed-container.active {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 抽屉内文字统一黑色（含食材名称、Markdown 加粗等） */
+#drawer-fixed-container .drawer-header-row,
+#drawer-fixed-container .drawer-title,
+#drawer-fixed-container .cart-row,
+#drawer-fixed-container .drawer-item-row,
+#drawer-fixed-container .markdown,
+#drawer-fixed-container .markdown p,
+#drawer-fixed-container .markdown span,
+#drawer-fixed-container .markdown strong,
+#drawer-fixed-container .markdown b,
+#drawer-fixed-container p,
+#drawer-fixed-container span,
+#drawer-fixed-container div,
+#drawer-fixed-container strong,
+#drawer-fixed-container b {
+  color: var(--hotpot-black) !important;
+}
+#drawer-fixed-container .drawer-empty-msg,
+#drawer-fixed-container .empty-text {
+  color: #333 !important;
+}
+
+.drawer-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--hotpot-gray-border);
+}
+.drawer-title {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--hotpot-black) !important;
+}
+.drawer-close-btn {
+  background: transparent;
+  border: 1px solid var(--hotpot-gray-light);
+  color: var(--hotpot-black);
+  padding: 6px 12px;
+  border-radius: var(--card-radius-xs);
+  font-size: 0.9em;
+  cursor: pointer;
+}
+.drawer-close-btn:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+.handle, .shuai-drawer-handle {
+  width: var(--drawer-handle-width);
+  height: var(--drawer-handle-height);
+  background: var(--hotpot-gray-light);
+  border-radius: 2px;
+  margin: 10px auto 6px;
+}
+.drawer-item-row, .cart-row { align-items: center; }
+.drawer-empty-msg, .empty-text {
+  color: #333 !important;
+  font-size: .9em;
+  padding: 16px 0;
+}
+.drawer-del-btn-native, .del-icon {
+  background: transparent !important;
+  border: none !important;
+  color: var(--hotpot-red-bright) !important;
+  box-shadow: none !important;
+  font-size: 20px !important;
+}
+
+.shuai-drawer-handle { width: var(--drawer-handle-width); height: var(--drawer-handle-height); background: var(--hotpot-gray-light); border-radius: 2px; margin: 10px auto 6px; }
+.di-name { font-weight: 500; font-size: .95em; color: var(--hotpot-black) !important; }
+.di-meta { font-size: .8em; color: #333 !important; }
+
+/* ── 第二步：偏好（格子底色 + 黑色字体）────────────────────────── */
+.pref-acc,
+[class*="pref-acc"] {
+  margin: 8px var(--card-margin);
+  border-radius: var(--card-radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shuai-shadow);
+  border: none;
+  background: var(--shuai-cell-bg);
+  color: var(--hotpot-black);
+}
+.pref-acc > div:first-child,
+.pref-acc .gr-group,
+[class*="pref-acc"] > div:first-child { color: #111 !important; }
+.pref-radio .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 10px 12px 14px;
+  gap: 6px;
+}
+.pref-radio label,
+.pref-radio .wrap label {
+  background: var(--shuai-cell-bg) !important;
+  color: #111 !important;
+  border: 1px solid rgba(0,0,0,.12) !important;
+}
+.pref-radio label:has(input:checked),
+.pref-radio .wrap label:has(input:checked) {
+  background: linear-gradient(135deg, var(--shuai-accent), var(--shuai-accent-2)) !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+
+/* 第二步：仅偏好区米色（.pref-acc 已设），步骤头不设米色；文案颜色 */
+#page-step1 label,
+#page-step1 input,
+#page-step1 .label,
+#page-step1 p,
+#page-step1 span { color: var(--hotpot-black); }
+#page-step1 .pref-acc .gr-group { background: var(--shuai-cell-bg); }
+
+/* 第二步：隐藏组件类型（仅隐藏控件顶部的 type 标签，不隐藏选项文字） */
+#page-step1 .pref-radio > .label,
+#page-step1 .pref-radio > .gr-label,
+#page-step1 .pref-radio > div[class*="label"],
+#page-step1 [id^="pref-broth"] > .label,
+#page-step1 [id^="pref-broth"] > .gr-label,
+#page-step1 [id^="pref-texture"] > .label,
+#page-step1 [id^="pref-texture"] > .gr-label,
+#page-step1 [id^="pref-mode"] > .label,
+#page-step1 [id^="pref-mode"] > .gr-label,
+#page-step1 [id^="pref-allergen"] > .label,
+#page-step1 [id^="pref-allergen"] > .gr-label,
+#page-step1 [id^="pref-people"] > .label,
+#page-step1 [id^="pref-people"] > .gr-label,
+#page-step1 .gr-group > .label,
+#page-step1 .gr-group > .gr-label { display: none !important; }
+/* 手风琴标题保持显示 */
+#page-step1 .pref-acc > div:first-child,
+#page-step1 .gr-accordion > div:first-child { display: flex !important; visibility: visible !important; }
+#plan-scroll-wrap {
+  background: var(--shuai-cell-bg);
+  margin: var(--card-margin);
+  border-radius: var(--card-radius-md);
+  padding: 16px 18px;
+  max-height: var(--plan-scroll-max-height);
+  overflow-y: auto;
+  color: var(--hotpot-black);
+}
+#plan-scroll-wrap .markdown,
+#plan-scroll-wrap p { color: #111 !important; }
+#boiling-detect-group {
+  background: var(--shuai-cell-bg);
+  border-radius: var(--card-radius-md);
+  padding: var(--card-padding-sm);
+  margin: 0 var(--card-margin) 8px;
+  color: var(--hotpot-black);
+}
+#boiling-detect-group label { color: var(--hotpot-black); }
+.eating-btn-wrap { display: flex; justify-content: center; padding: 18px 0 10px; }
+#btn-start-eating button {
+  width: var(--btn-circle-size);
+  height: var(--btn-circle-size);
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--shuai-accent) 0%, var(--shuai-accent-2) 100%);
+  color: var(--hotpot-white);
+}
+.block { border: none !important; box-shadow: none !important; }
+.gr-form { background: transparent; border: none; }
+.gradio-container .gr-box label,
+.gradio-container .gr-box input,
+.gradio-container .gr-box span,
+.gradio-container .gr-form label { color: var(--hotpot-black); }
+
+/* ── 组件层：由 components.py 使用类名，颜色来自 :root 变量 ───────────────── */
+.hp-poster-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--hotpot-overlay-poster);
+  pointer-events: none;
+}
+/* 开锅检测结果卡片：按状态使用修饰类，色值仅在 CSS 中定义 */
+.status-box {
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 6px 0;
+  border: 1.5px solid;
+}
+.status-box__row { display: flex; align-items: center; gap: 8px; }
+.status-box__icon { font-size: 1.8em; line-height: 1; }
+.status-box__title { font-size: 1.05em; font-weight: 700; }
+.status-box__desc { margin: 4px 0 0; font-size: 0.82em; color: var(--hotpot-gray); }
+.status-box__adv { margin: 6px 0 0; font-size: 0.88em; font-weight: 600; }
+.status-box--boiling { background: #fff5f5; border-color: #ffd5d5; color: var(--hotpot-red-bright); }
+.status-box--boiling .status-box__title,
+.status-box--boiling .status-box__adv { color: var(--hotpot-red-bright); }
+.status-box--simmer { background: #fff8f0; border-color: #ffe5c0; color: var(--hotpot-orange-soft); }
+.status-box--simmer .status-box__title,
+.status-box--simmer .status-box__adv { color: var(--hotpot-orange-soft); }
+.status-box--not-boiling { background: #f0f7ff; border-color: #c8e0f8; color: #2980b9; }
+.status-box--not-boiling .status-box__title,
+.status-box--not-boiling .status-box__adv { color: #2980b9; }
+.status-box--unknown { background: #f8f8f8; border-color: #e8e8e8; color: #888; }
+.status-box--unknown .status-box__title,
+.status-box--unknown .status-box__adv { color: #888; }
+.status-box--default { background: #f8f8f8; border-color: #ddd; color: #555; }
+.status-box--default .status-box__title,
+.status-box--default .status-box__adv { color: #555; }
+.copy-empty-warn, .qr-empty-warn { color: var(--hotpot-orange-soft); font-size: 0.9em; }
+.copy-status { font-size: 0.88em; color: #27ae60; }
+.qr-install-warn {
+  padding: 10px;
+  border: 1px solid #f0c040;
+  border-radius: 8px;
+  background: #fffde7;
+  font-size: 0.88em;
+  color: #7d6608;
+}
+.qr-img-wrap { text-align: center; padding: 10px 0; }
+.qr-img-wrap img { max-width: 200px; border-radius: 8px; box-shadow: 0 2px 8px var(--hotpot-shadow); }
+.qr-caption { font-size: 0.78em; color: var(--hotpot-gray); margin-top: 6px; }
+.qr-error { color: var(--hotpot-red-bright); font-size: 0.9em; }
+.hotpot-flash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: rgba(255, 140, 0, 0.35);
+}
+@keyframes hotpot-flash-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
