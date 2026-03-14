@@ -699,28 +699,6 @@ def _tts_phrase_to_audio_html(phrase: str):
     return ""
 
 
-def _nav_next(step):
-    """下一步：步骤 0 -> 1"""
-    return 1, gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False)
-
-
-def _nav_prev(step):
-    """上一步：步骤 1 -> 0"""
-    return 0, gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
-
-
-def _nav_restart(step):
-    """重新开始：步骤 2 -> 0"""
-    return 0, gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
-
-
-def _nav_restart_from_timer(step, start_time):
-    """从计时页返回：步骤 3 -> 0，同时清理该 session 的缓存防内存泄漏。"""
-    if start_time and start_time > 0:
-        _cleanup_timer_state(start_time)
-    return 0, gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
-
-
 def _show_generating():
     """点击生成后立即显示加载提示并切换到结果页，给用户即时反馈。"""
     loading_md = (
@@ -1369,8 +1347,8 @@ def _boiling_result_html(icon: str, stage: str, description: str, advice: str) -
 def _basket_bar_html(count: int, state: list) -> str:
     """
     底部购物车栏（仿美团风格）+ 上拉抽屉。
-    栏内右侧「下一步」已改为布局中的真实 Gradio 按钮（btn-next-in-bar），有后端绑定；
-    抽屉内「下一步」通过 JS 触发该按钮。
+    栏内右侧「下一步」为布局中的真实 Gradio 按钮（btn-next-in-bar），有后端绑定；
+    抽屉内「下一步」仅关闭抽屉，跳转请点击底部栏的 Gradio「下一步」按钮。
     """
     items_list = [r[0] for r in (state or []) if r and r[0]]
     preview = "、".join(items_list[:3]) + ("…" if len(items_list) > 3 else "") if items_list else "还未添加食材"
@@ -1397,7 +1375,7 @@ def _basket_bar_html(count: int, state: list) -> str:
     </div>
     <div class="shuai-drawer-body">{drawer_content}</div>
     <div class="shuai-drawer-footer">
-      <button class="shuai-drawer-next" onclick="shuaiCloseBasket2('{count}'); setTimeout(shuaiGrNextRaw, 120)">下一步</button>
+      <button class="shuai-drawer-next" onclick="shuaiCloseBasket2('{count}')">下一步</button>
     </div>
   </div>
 </div>
@@ -1416,36 +1394,9 @@ def _basket_bar_html(count: int, state: list) -> str:
     if(o)o.style.display='none';
     if(d)d.classList.remove('open');
   }}
-  function fireClick(el){{
-    el.dispatchEvent(new MouseEvent('click', {{bubbles:true, cancelable:true, view:window}}));
-  }}
-  function grNext(){{
-    // 触发底部栏的 Gradio「下一步」按钮（有后端绑定）
-    var wrapper = document.getElementById('btn-next-in-bar') || document.querySelector('[id^="btn-next-in-bar"]');
-    if(wrapper){{
-      var button = wrapper.querySelector('button');
-      if(button){{ fireClick(button); return; }}
-      fireClick(wrapper);
-      return;
-    }}
-    var fallback = document.getElementById('btn-next-hidden') || document.querySelector('[id^="btn-next-hidden"]');
-    if(fallback){{
-      var btn = fallback.querySelector('button');
-      if(btn){{ fireClick(btn); return; }}
-    }}
-    var allBtns = document.querySelectorAll('button');
-    for(var i=0; i<allBtns.length; i++){{
-      var b = allBtns[i];
-      if(b.closest && b.closest('.shuai-basket-area')) continue;
-      if(b.textContent.trim().indexOf('下一步')>=0){{ fireClick(b); return; }}
-    }}
-    console.warn('Could not find next button');
-  }}
   window.shuaiOpenBasket=openDrawer;
   window.shuaiCloseBasket=function(el){{closeDrawer();}};
   window.shuaiCloseBasket2=closeDrawer;
-  window.shuaiGrNext=function(e){{if(e)e.stopPropagation();grNext();}};
-  window.shuaiGrNextRaw=grNext;
 }})();
 </script>
 """
@@ -2149,28 +2100,24 @@ body {
   background: #bec9be !important;
 }
 
-/* ── 手机框容器：固定大小且开启内部滚动 ── */
+/* ── 手机框容器：弹性移动端模拟，避免滚动锁死 ── */
 .gradio-container {
-  width: 390px !important;
-  height: 844px !important;
+  width: 100% !important;
   max-width: 390px !important;
-  max-height: 844px !important;
-  margin: 20px auto !important;
+  min-height: 100vh !important;
+  margin: 0 auto !important;
+  padding-bottom: 80px !important; /* 给底部悬浮栏留出空间 */
   border: 10px solid #333 !important; /* 模拟手机黑边 */
   border-radius: 45px !important;
-  overflow: hidden !important; /* 外壳不滚动 */
+  overflow: visible !important; /* 允许原生滚动，不截断内容 */
   background: #f7f5f2 !important;
-  display: flex !important;
-  flex-direction: column !important;
   position: relative !important;
+  box-sizing: border-box !important;
 }
-
-/* 核心修复：让 Gradio 内部的主主体区域可以纵向滚动 */
+/* 不再锁死 .main 高度，避免 Gradio DOM 变化导致内部无法滚动 */
 .gradio-container > .main {
-  flex: 1 !important;
-  overflow-y: auto !important; /* 开启内部滚动 */
-  height: 100% !important;
-  padding-bottom: 80px !important; /* 为底部按钮留出空间 */
+  padding-bottom: 80px !important;
+  min-height: 0 !important;
 }
 
 /* 隐藏所有多余的 Gradio 默认间距和底部标识 */
@@ -2431,7 +2378,7 @@ footer { display: none !important; }
 #ing-confirm-row #btn-clear-input { flex: 1 !important; }
 #time-portion-row { margin-top: 6px; }
 
-/* ── 购物车栏 ──────────────────────────────────────────── */
+/* ── 购物车栏：固定悬浮在页面底部，不依赖外层高度 ── */
 #basket-bar-row {
   background: #2a2424 !important;
   display: flex !important;
@@ -2439,8 +2386,13 @@ footer { display: none !important; }
   justify-content: space-between;
   padding: 11px 16px;
   margin: 0;
-  position: sticky;
+  position: fixed !important;
   bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 390px;
+  box-sizing: border-box;
   z-index: 50;
 }
 #basket-bar-row .shuai-basket-bar {
@@ -2625,7 +2577,6 @@ footer { display: none !important; }
 .eating-btn-wrap {
   display: flex; justify-content: center; padding: 18px 0 10px;
 }
-#btn-start-eating { display: none; } /* will be shown via next rule on the button */
 #btn-start-eating button,
 #page-step2 #btn-start-eating button {
   width: 112px !important; height: 112px !important;
