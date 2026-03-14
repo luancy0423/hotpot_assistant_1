@@ -235,41 +235,47 @@ footer { display: none !important; }
   50% { transform: translateY(6px); }
 }
 
-/* ── 步骤1/第一步：食材输入（方案 B：外层 ing-card-wrap 负责米色底）────────────────── */
-/* 方案 B：ui.py 中用 gr.Column(elem_classes=["ing-card-wrap"]) 包住食材区，此处对壳设米色 */
-#ing-card-wrap,
-#page-step0 [class*="ing-card-wrap"] {
-  background: var(--shuai-cell-bg) !important;
+/* ── Step0（第一步·输入食材）方案三：设计令牌桥接 + 精准重置 ───────────────────── */
+/* 精准重置：page-step0 下所有 Gradio 块透明，由 .step0-card 提供米色 */
+#page-step0 .block,
+#page-step0 .gr-group,
+#page-step0 .gr-form {
+  background: transparent !important;
+}
+/* 米色卡片：仅对 step0-card 设令牌色，不泛泛对 div */
+#page-step0 .step0-card,
+#page-step0 #step0-input-area,
+#page-step0 #step0-recognition-area {
+  background: var(--card-bg) !important;
   border-radius: var(--card-radius);
   padding: var(--card-padding);
   margin: var(--card-margin);
   box-shadow: var(--shuai-shadow);
   border: none;
-}
-/* 仅壳的「直接子层」透明，透出米色；不碰内层小组件（input/按钮等的包装） */
-#ing-card-wrap > div,
-#page-step0 [class*="ing-card-wrap"] > div {
-  background: transparent !important;
-}
-/* 内层 Group 透明，透出外层米色 */
-#ing-card-group,
-[id^="ing-card-group"],
-[id*="ing-card-group"] {
-  background: transparent;
-  margin: 0;
-  border-radius: 0;
-  padding: 0;
-  border: none;
-  box-shadow: none;
   color: var(--hotpot-black);
 }
-#ing-card-group label,
-#ing-card-group .ing-card-title,
-#ing-card-group input,
-#ing-card-group .wrap,
-[id*="ing-card-group"] label,
-[id*="ing-card-group"] .ing-card-title,
-[id*="ing-card-group"] input { color: #111 !important; }
+#page-step0 .step0-card .block,
+#page-step0 .step0-card .gr-group,
+#page-step0 .step0-card .gr-form {
+  background: transparent !important;
+}
+/* 输入/控件白底（桥接后仍保留，避免被主题覆盖） */
+#page-step0 .step0-card input,
+#page-step0 .step0-card select,
+#page-step0 .step0-card textarea,
+#page-step0 .step0-card .gr-box,
+#page-step0 .step0-card .gr-form,
+#page-step0 .step0-card [class*="wrap"] {
+  background: var(--hotpot-white) !important;
+  background-color: var(--hotpot-white) !important;
+  border-color: var(--hotpot-gray-light) !important;
+  box-shadow: none !important;
+}
+#page-step0 .step0-card input:focus,
+#page-step0 .step0-card select:focus { border-color: var(--hotpot-gray) !important; outline: none !important; }
+#page-step0 .step0-card label,
+#page-step0 .step0-card .ing-card-title,
+#page-step0 .step0-card input { color: #111 !important; }
 .ing-card-title {
   font-size: .78em;
   color: #111 !important;
@@ -278,56 +284,9 @@ footer { display: none !important; }
   margin-bottom: 10px;
   text-transform: uppercase;
 }
-#img-rec-group,
-[id^="img-rec-group"],
-[id*="img-rec-group"] {
-  background: var(--shuai-cell-bg);
-  margin: 0 var(--card-margin) 10px;
-  border-radius: var(--card-radius-md);
-  padding: 0 14px 14px;
-  box-shadow: var(--shuai-shadow);
-  color: var(--hotpot-black);
-}
-#img-rec-group label,
-[id*="img-rec-group"] label { color: #111 !important; }
-/* 第一步：食材名称/搜索补全/涮煮时间/份数/语音/识图 强制白底去橙（覆盖 Gradio 主题 primary 橙） */
-/* Gradio 主题变量名用下划线，如 input_background_fill、block_background_fill */
-#page-step0 #ing-card-group,
-#page-step0 #img-rec-group {
-  --input_background_fill: var(--hotpot-white) !important;
-  --block_background_fill: var(--hotpot-white) !important;
-  --input-background-fill: var(--hotpot-white) !important;
-  --background-fill-primary: var(--hotpot-white) !important;
-  --background-fill-secondary: var(--hotpot-white) !important;
-}
-#ing-card-group input,
-#ing-card-group select,
-#ing-card-group textarea,
-#ing-card-group .gr-box,
-#ing-card-group .gr-form,
-#ing-card-group [class*="wrap"],
-[id*="ing-card-group"] input,
-[id*="ing-card-group"] select,
-[id*="ing-card-group"] .gr-box,
-[id*="ing-card-group"] .gr-form,
-#img-rec-group input,
-#img-rec-group select,
-#img-rec-group textarea,
-#img-rec-group .gr-box,
-#img-rec-group .gr-form,
-[id*="img-rec-group"] .gr-box,
-[id*="img-rec-group"] .gr-form {
-  background: var(--hotpot-white) !important;
-  background-color: var(--hotpot-white) !important;
-  border-color: var(--hotpot-gray-light) !important;
-  box-shadow: none !important;
-}
-#ing-card-group input:focus,
-#ing-card-group select:focus,
-#img-rec-group input:focus { border-color: var(--hotpot-gray) !important; outline: none !important; }
 #merchant-status { margin: 0 var(--card-margin); color: var(--hotpot-white); }
 
-/* 第一步：仅步骤内文案/控件颜色，米色只用在 #ing-card-group / #img-rec-group（见上） */
+/* Step0：步骤内文案/控件颜色 */
 #page-step0 label,
 #page-step0 input,
 #page-step0 .label,

@@ -124,29 +124,29 @@ def create_ui():
         step0 = gr.Column(visible=False, elem_id="page-step0")
         with step0:
             gr.HTML(step_header_html("第一步", "输入食材"))
-
-            with gr.Column(elem_id="ing-card-wrap", elem_classes=["ing-card-wrap"]):
-                with gr.Group(elem_id="ing-card-group"):
-                    with gr.Row(elem_id="ing-input-top"):
-                        with gr.Column(scale=3, elem_id="ing-text-col"):
-                            ingredient_name_input = gr.Textbox(label="🖊 食材名称", placeholder="如：毛肚、肥牛", lines=1, elem_id="ing-name-tb")
-                            ingredient_search_dd  = gr.Dropdown(label="🔍 搜索补全", choices=[], value=None, allow_custom_value=True, interactive=True, elem_id="ing-search-dd")
-                            ingredient_default_hint = gr.Markdown("", visible=True)
-                    with gr.Row(elem_id="time-portion-row"):
-                        ingredient_time_input    = gr.Slider(label="涮煮时间(秒)", minimum=0, maximum=600, value=0, step=5, info="留0则使用库默认", scale=2)
-                        ingredient_portion_input = gr.Slider(label="份数", minimum=1, maximum=99, value=1, step=1, scale=1)
-                    with gr.Row(elem_id="ing-confirm-row"):
-                        btn_add_row      = gr.Button("✔ 加入清单", variant="primary", elem_id="btn-confirm-add")
-                        btn_reject_input = gr.Button("✘ 清空",     variant="secondary", elem_id="btn-clear-input")
-                    with gr.Row(elem_id="ing-voice-img-row"):
-                        with gr.Column(scale=1, elem_id="ing-voice-col"):
-                            voice_input   = gr.Audio(label="🎤 语音", sources=["microphone", "upload"], type="filepath")
-                            btn_voice     = gr.Button("识别语音", size="sm", elem_id="btn-voice-rec")
-                            voice_status  = gr.Markdown("", visible=True)
-                        with gr.Column(scale=1, elem_id="ing-img-col"):
-                            image_input   = gr.Image(label="📷 识图", type="filepath", sources=["upload"])
-                            btn_image     = gr.Button("识图填入", size="sm", elem_id="btn-image-rec")
-                            image_status  = gr.Markdown("", visible=True)
+            # 方案三：取消双重壳，直接 2 个独立 Group（录入区、识别区）
+            with gr.Group(elem_classes=["step0-card", "step0-录入区"], elem_id="step0-input-area"):
+                with gr.Row(elem_id="ing-input-top"):
+                    with gr.Column(scale=3, elem_id="ing-text-col"):
+                        ingredient_name_input = gr.Textbox(label="🖊 食材名称", placeholder="如：毛肚、肥牛", lines=1, elem_id="ing-name-tb")
+                        ingredient_search_dd  = gr.Dropdown(label="🔍 搜索补全", choices=[], value=None, allow_custom_value=True, interactive=True, elem_id="ing-search-dd")
+                        ingredient_default_hint = gr.Markdown("", visible=True)
+                with gr.Row(elem_id="time-portion-row"):
+                    ingredient_time_input    = gr.Slider(label="涮煮时间(秒)", minimum=0, maximum=600, value=0, step=5, info="留0则使用库默认", scale=2)
+                    ingredient_portion_input = gr.Slider(label="份数", minimum=1, maximum=99, value=1, step=1, scale=1)
+                with gr.Row(elem_id="ing-confirm-row"):
+                    btn_add_row      = gr.Button("✔ 加入清单", variant="primary", elem_id="btn-confirm-add")
+                    btn_reject_input = gr.Button("✘ 清空",     variant="secondary", elem_id="btn-clear-input")
+            with gr.Group(elem_classes=["step0-card", "step0-识别区"], elem_id="step0-recognition-area"):
+                with gr.Row(elem_id="ing-voice-img-row"):
+                    with gr.Column(scale=1, elem_id="ing-voice-col"):
+                        voice_input   = gr.Audio(label="🎤 语音", sources=["microphone", "upload"], type="filepath")
+                        btn_voice     = gr.Button("识别语音", size="sm", elem_id="btn-voice-rec")
+                        voice_status  = gr.Markdown("", visible=True)
+                    with gr.Column(scale=1, elem_id="ing-img-col"):
+                        image_input   = gr.Image(label="📷 识图", type="filepath", sources=["upload"])
+                        btn_image     = gr.Button("识图填入", size="sm", elem_id="btn-image-rec")
+                        image_status  = gr.Markdown("", visible=True)
 
             merchant_status = gr.Markdown("", visible=True, elem_id="merchant-status")
             btn_merchant    = gr.Button("🔗 一键接入商家点餐系统", size="sm", variant="secondary", elem_id="btn-merchant")
@@ -452,8 +452,7 @@ def launch_demo():
     """创建界面并启动服务（app.py 部署入口调用）。"""
     from config import SERVER_NAME, SERVER_PORT, GRADIO_SHARE
     demo = create_ui()
-    # 桥接：Gradio 主题变量直接引用 style.css 令牌（仅使用 .set() 支持的参数）
-    # 次要色色阶、加载圈等由 assets/style.css 暴力覆盖
+    # 方案三：设计令牌桥接 —— 接管 Gradio 颜色系统，次要色直接指向米色令牌
     custom_theme = gr.themes.Soft(
         primary_hue="orange",
         secondary_hue="orange",
