@@ -124,8 +124,8 @@ def create_ui():
         step0 = gr.Column(visible=False, elem_id="page-step0")
         with step0:
             gr.HTML(step_header_html("第一步", "输入食材"))
-            # 方案三：取消双重壳，直接 2 个独立 Group（录入区、识别区）
-            with gr.Group(elem_classes=["step0-card", "step0-录入区"], elem_id="step0-input-area"):
+            # 方案一（区块化）：与 Step 1 一致，用独立 Accordion 小卡片，避免 Group 深嵌套带来的主题蓝底
+            with gr.Accordion("🖊 手动录入", open=True, elem_classes=["step0-acc", "step0-录入区"], elem_id="step0-input-acc"):
                 with gr.Row(elem_id="ing-input-top"):
                     with gr.Column(scale=3, elem_id="ing-text-col"):
                         ingredient_name_input = gr.Textbox(label="🖊 食材名称", placeholder="如：毛肚、肥牛", lines=1, elem_id="ing-name-tb")
@@ -137,7 +137,7 @@ def create_ui():
                 with gr.Row(elem_id="ing-confirm-row"):
                     btn_add_row      = gr.Button("✔ 加入清单", variant="primary", elem_id="btn-confirm-add")
                     btn_reject_input = gr.Button("✘ 清空",     variant="secondary", elem_id="btn-clear-input")
-            with gr.Group(elem_classes=["step0-card", "step0-识别区"], elem_id="step0-recognition-area"):
+            with gr.Accordion("🎤 语音 / 📷 识图", open=True, elem_classes=["step0-acc", "step0-识别区"], elem_id="step0-recognition-acc"):
                 with gr.Row(elem_id="ing-voice-img-row"):
                     with gr.Column(scale=1, elem_id="ing-voice-col"):
                         voice_input   = gr.Audio(label="🎤 语音", sources=["microphone", "upload"], type="filepath")

@@ -235,18 +235,20 @@ footer { display: none !important; }
   50% { transform: translateY(6px); }
 }
 
-/* ── Step0（第一步·输入食材）方案三：设计令牌桥接 + 精准重置 ───────────────────── */
-/* 精准重置：page-step0 下所有 Gradio 块透明，由 .step0-card 提供米色 */
+/* ── Step0（第一步·输入食材）方案一：区块化 Accordion 小卡片，打破 Group 深嵌套蓝底 ── */
+/* 顶层：step0 下所有默认块透明，仅由 .step0-acc 提供米色卡片 */
 #page-step0 .block,
 #page-step0 .gr-group,
 #page-step0 .gr-form {
   background: transparent !important;
 }
-/* 米色卡片：仅对 step0-card 设令牌色，不泛泛对 div */
-#page-step0 .step0-card,
-#page-step0 #step0-input-area,
-#page-step0 #step0-recognition-area {
+/* 米色卡片：与 Step1 一致的 Accordion 小卡片，物理上避免主题 secondary 蓝 */
+#page-step0 .step0-acc,
+#page-step0 .gr-accordion.step0-acc,
+#page-step0 #step0-input-acc,
+#page-step0 #step0-recognition-acc {
   background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
   border-radius: var(--card-radius);
   padding: var(--card-padding);
   margin: var(--card-margin);
@@ -254,28 +256,153 @@ footer { display: none !important; }
   border: none;
   color: var(--hotpot-black);
 }
-#page-step0 .step0-card .block,
-#page-step0 .step0-card .gr-group,
-#page-step0 .step0-card .gr-form {
+/* Accordion 内部所有包裹层强制透明，透出卡片米色 */
+#page-step0 .step0-acc .block,
+#page-step0 .step0-acc .gr-group,
+#page-step0 .step0-acc .gr-form,
+#page-step0 .step0-acc [class*="svelte"],
+#page-step0 .step0-acc .wrap {
   background: transparent !important;
+  background-color: transparent !important;
 }
-/* 输入/控件白底（桥接后仍保留，避免被主题覆盖） */
-#page-step0 .step0-card input,
-#page-step0 .step0-card select,
-#page-step0 .step0-card textarea,
-#page-step0 .step0-card .gr-box,
-#page-step0 .step0-card .gr-form,
-#page-step0 .step0-card [class*="wrap"] {
-  background: var(--hotpot-white) !important;
-  background-color: var(--hotpot-white) !important;
-  border-color: var(--hotpot-gray-light) !important;
+/* 手风琴按钮：去除主题蓝，与 Step1 一致 */
+#page-step0 .gr-accordion.step0-acc > button,
+#page-step0 .step0-acc .gr-accordion > div:first-child {
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
+  color: var(--hotpot-black) !important;
+  border: none !important;
+}
+#page-step0 .gr-accordion.step0-acc > button:hover {
+  background-color: var(--color-surface-paper) !important;
+  filter: brightness(0.98);
+}
+/* 识别区：Audio/Image 控件及其包裹层强制透明/米色，消除 secondary 蓝 */
+#page-step0 .step0-识别区 .block,
+#page-step0 .step0-识别区 .gr-group,
+#page-step0 .step0-识别区 [class*="audio"],
+#page-step0 .step0-识别区 [class*="image"],
+#page-step0 .step0-识别区 .gr-box,
+#page-step0 #step0-recognition-acc .block,
+#page-step0 #step0-recognition-acc .gr-group,
+#page-step0 #step0-recognition-acc [class*="audio"],
+#page-step0 #step0-recognition-acc [class*="image"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: rgba(0,0,0,.08) !important;
+}
+/* 录入区：文本框/下拉/滑块透明底 + 黑色边框 */
+#page-step0 .step0-录入区 input,
+#page-step0 .step0-录入区 select,
+#page-step0 .step0-录入区 textarea,
+#page-step0 .step0-录入区 .gr-box,
+#page-step0 .step0-录入区 .gr-form,
+#page-step0 .step0-录入区 [class*="wrap"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 1px solid var(--hotpot-black) !important;
   box-shadow: none !important;
 }
-#page-step0 .step0-card input:focus,
-#page-step0 .step0-card select:focus { border-color: var(--hotpot-gray) !important; outline: none !important; }
-#page-step0 .step0-card label,
-#page-step0 .step0-card .ing-card-title,
-#page-step0 .step0-card input { color: #111 !important; }
+/* 手动录入、搜索补全：去掉黑色边框，仅保留透明底 */
+#page-step0 #ing-name-tb,
+#page-step0 #ing-search-dd,
+#page-step0 #ing-text-col input,
+#page-step0 #ing-text-col select,
+#page-step0 #ing-text-col .gr-box,
+#page-step0 #ing-text-col .gr-form {
+  border: none !important;
+}
+/* 搜索补全下拉：展开的菜单列表无黑边；触发框保留黑边 */
+#page-step0 #ing-search-dd .gr-box,
+#page-step0 #ing-search-dd .gr-form,
+#page-step0 #ing-search-dd [class*="dropdown"] {
+  border: none !important;
+}
+/* 搜索补全：触发框（.wrap / .wrap-inner / .secondary-wrap）黑色边框 */
+#page-step0 #ing-search-dd .wrap,
+#page-step0 #ing-search-dd .wrap-inner,
+#page-step0 #ing-search-dd .secondary-wrap {
+  border: 1px solid var(--hotpot-black) !important;
+}
+/* 食材名称、搜索补全：搜索补全与其它控件为黑色；食材名称输入框内文字为白色 */
+#page-step0 #ing-search-dd,
+#page-step0 #ing-text-col input,
+#page-step0 #ing-text-col select {
+  color: var(--hotpot-black) !important;
+}
+/* 食材名称 textarea（如：毛肚、肥牛）：文字与占位符均为白色 */
+#page-step0 #ing-name-tb textarea,
+#page-step0 #ing-text-col textarea,
+#page-step0 .step0-录入区 textarea[data-testid="textbox"] {
+  color: var(--hotpot-white) !important;
+}
+#page-step0 #ing-name-tb textarea::placeholder,
+#page-step0 #ing-text-col textarea::placeholder {
+  color: var(--hotpot-white) !important;
+  opacity: 0.85;
+}
+#page-step0 #ing-name-tb::placeholder,
+#page-step0 #ing-text-col input::placeholder {
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+/* 库内默认提示中的「15 秒」等加粗文字改为黑色 */
+#page-step0 .step0-录入区 strong,
+#page-step0 #ing-text-col strong {
+  color: var(--hotpot-black) !important;
+}
+/* 涮煮时间/份数 Slider：label、数值、滑动条排成三行（DOM：label + div.tab-like-container + range） */
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 6px !important;
+}
+/* 拆开第一行：包含 label 与 .tab-like-container 的容器改为纵向 → 三行：label / 数值 / range */
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) > *:first-child,
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) > *:has(> label):has(> .tab-like-container) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 6px !important;
+}
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) .tab-like-container {
+  align-self: stretch !important;
+}
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) .wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+#page-step0 .step0-acc input:focus,
+#page-step0 .step0-acc select:focus { border-color: var(--hotpot-gray) !important; outline: none !important; }
+#page-step0 .step0-acc label,
+#page-step0 .step0-acc .ing-card-title,
+#page-step0 .step0-acc input { color: #111 !important; }
+/* 加入清单、识图填入、点击上传、将图像拖入此处、删除等按钮与上传区文字改为黑色 */
+#page-step0 button,
+#page-step0 .gr-button,
+#page-step0 #btn-confirm-add,
+#page-step0 #btn-image-rec,
+#page-step0 #btn-voice-rec,
+#page-step0 .step0-识别区 label,
+#page-step0 .step0-识别区 span,
+#page-step0 .step0-识别区 p,
+#page-step0 .step0-识别区 [class*="drop"],
+#page-step0 .step0-识别区 [class*="upload"] {
+  color: var(--hotpot-black) !important;
+}
+/* 识图框内「将图像拖到此处」「点击上传」等文字改为黑色 */
+#page-step0 #ing-img-col label,
+#page-step0 #ing-img-col span,
+#page-step0 #ing-img-col p,
+#page-step0 #ing-img-col [class*="drop"],
+#page-step0 #ing-img-col [class*="upload"],
+#page-step0 #ing-img-col .gr-box,
+#page-step0 #ing-img-col .gr-form,
+#page-step0 #ing-img-col [class*="placeholder"],
+#page-step0 #ing-img-col [class*="text"] {
+  color: var(--hotpot-black) !important;
+}
 .ing-card-title {
   font-size: .78em;
   color: #111 !important;
@@ -303,6 +430,9 @@ footer { display: none !important; }
   width: calc(100% - 2 * var(--card-margin));
   max-width: none;
   box-sizing: border-box;
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
+  color: var(--hotpot-black) !important;
 }
 #step0-next-row { margin: 16px var(--card-margin) 8px; justify-content: flex-end; }
 #ing-confirm-row { margin-top: 10px; gap: 10px; }
