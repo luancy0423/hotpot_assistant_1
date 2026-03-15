@@ -14,7 +14,5 @@ if _ROOT not in sys.path:
 from config import load_dotenv
 from frontend.ui import launch_demo
 
-load_dotenv()
-
 if __name__ == "__main__":
     launch_demo()

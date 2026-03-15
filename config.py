@@ -32,6 +32,9 @@ def load_dotenv():
         pass
 
 
+# 首次导入 config 时先加载 .env，再读下面的常量（这样 GRADIO_SHARE 才能读到 HOTPOT_GRADIO_SHARE）
+load_dotenv()
+
 # 部署 / 启动常量（app.py、frontend.ui 使用）
 SERVER_NAME = "0.0.0.0"
 SERVER_PORT = 7860

@@ -231,13 +231,7 @@ def timer_tick(
     excluded_ingredients: Optional[List[str]] = None,
 ) -> Tuple[str, int, int, str]:
     """每秒调用：计算当前进度，返回 (display_html, new_put_sec, new_take_sec, voice_html_out)。
-    
-    新增参数：
-        is_paused: 计时器是否处于暂停状态
-        paused_elapsed: 暂停时冻结的已过秒数
-        total_paused_duration: 累计暂停总时长（秒），用于修正 elapsed
-        excluded_ingredients: 不参与计时的食材名称列表
-    """
+    支持暂停（is_paused/paused_elapsed/total_paused_duration）与剔除食材（excluded_ingredients）。"""
     if not plan_data or not start_time or start_time <= 0:
         return (
             "<p style='color:#bbb;text-align:center;padding:40px;font-size:.95em'>等待开始…</p>",
@@ -246,7 +240,6 @@ def timer_tick(
             "",
         )
 
-    # ── 暂停时使用冻结的 elapsed ──
     if is_paused:
         elapsed = paused_elapsed
     else:
@@ -265,11 +258,9 @@ def timer_tick(
     events = timeline.get("events") or []
     items = timeline.get("items") or []
 
-    # ── 过滤掉被排除的食材 ──
     if excluded_set:
         events = [e for e in events if e.get("item_name", "") not in excluded_set]
         items = [it for it in items if it.get("ingredient_name", "") not in excluded_set]
-        # 重新计算 total_sec（仅基于未排除的事件）
         if events:
             total_sec = max(e["time_seconds"] for e in events)
         else:
@@ -296,7 +287,6 @@ def timer_tick(
         elapsed, total_sec, show_put, show_take,
         name_put, name_take, next_put_info, next_take_info, items,
     )
-    # ── 暂停时在顶部叠加暂停提示，并抑制语音播报 ──
     if is_paused:
         pause_banner = (
             '<div style="text-align:center;padding:12px 16px;margin:0 16px 8px;'
@@ -304,11 +294,9 @@ def timer_tick(
             'color:#856404;font-weight:700;font-size:1em;letter-spacing:1px">'
             '⏸ 已暂停</div>'
         )
-        # 把暂停提示插到最外层 div 内部顶部
-        insert_pos = display_html.find('>') + 1  # 找到最外层 <div ...> 的结束
+        insert_pos = display_html.find(">") + 1
         if insert_pos > 1:
             display_html = display_html[:insert_pos] + pause_banner + display_html[insert_pos:]
-        # 暂停时不播放语音
         return display_html, new_put_sec, new_take_sec, ""
 
     voice_put_new = bool(cur_put and cur_put["time_seconds"] > last_put_sec)

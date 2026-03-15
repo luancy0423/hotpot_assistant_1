@@ -1,9 +1,42 @@
 /* ═══════════════════════════════════════════════════════════════════
-   涮涮AI - 声明式样式表
-   颜色与尺寸单一事实来源：仅在此 :root 中定义色值与关键尺寸
+   涮涮AI - 设计令牌架构（Design Tokens）
+   第一层：基础令牌（仅此处定义具体色值）
+   第二层：语义变量（组件只引用用途，不关心具体色值）
+   第三层：组件覆盖仅引用第二层
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
+  /* ── 第一层：基础令牌 Global Tokens ── */
+  --color-brand-red: #a31515;
+  --color-brand-red-dark: #2b0505;
+  --color-brand-red-bright: #c0392b;
+  --color-brand-gold: #ffda75;
+  --color-surface-paper: #faf7f2;
+  --color-surface-cell: #EDEBDE;
+  --color-text-primary: #1a1a1a;
+  --color-text-on-red: #ffffff;
+  --color-bar: #2a2424;
+  --color-accent-orange: #e07c24;
+  --color-accent-orange-strong: #e65c00;
+  --color-neutral-white: #ffffff;
+  --color-neutral-gray: #999999;
+  --color-neutral-gray-light: #ddd;
+  --color-neutral-border: #eee;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-overlay-poster: rgba(0, 0, 0, 0.35);
+  --color-shadow: rgba(0, 0, 0, 0.2);
+
+  /* ── 第二层：语义变量 Semantic Variables（组件只引用这些）── */
+  --app-bg: var(--color-brand-red);
+  --app-bg-dark: var(--color-brand-red-dark);
+  --card-bg: var(--color-surface-cell);
+  --header-title: var(--color-text-on-red);
+  --header-num: var(--color-brand-gold);
+  --input-bg: var(--color-neutral-white);
+  --radio-selected: linear-gradient(135deg, var(--color-accent-orange), var(--color-brand-red-bright));
+  --accordion-header-bg: var(--card-bg);
+  --radio-bg: var(--card-bg);
+
   /* ── 尺寸（Layout & Sizing）单一事实来源 ── */
   --app-max-width: 450px;
   --app-bottom-padding: 80px;
@@ -34,37 +67,35 @@
   --poster-aspect-w: 99;
   --poster-aspect-h: 140;
 
-  /* ── 主色调：火锅核心颜色 ── */
-  --hotpot-red-dark: #2b0505;
-  --hotpot-red-main: #a31515;
-  --hotpot-red-bright: #c0392b;
-  --hotpot-gold: #ffda75;
-  --hotpot-orange: #e65c00;
-  --hotpot-orange-soft: #e07c24;
-  --hotpot-white: #ffffff;
-  --hotpot-black: #1a1a1a;
-  --hotpot-gray: #999999;
-  --hotpot-gray-light: #ddd;
-  --hotpot-gray-border: #eee;
-  --hotpot-overlay: rgba(0, 0, 0, 0.6);
-  --hotpot-overlay-poster: rgba(0, 0, 0, 0.35);
-  --hotpot-shadow: rgba(0, 0, 0, 0.2);
+  /* ── 兼容旧变量名（指向语义层或基础层）── */
+  --hotpot-red-dark: var(--color-brand-red-dark);
+  --hotpot-red-main: var(--color-brand-red);
+  --hotpot-red-bright: var(--color-brand-red-bright);
+  --hotpot-gold: var(--color-brand-gold);
+  --hotpot-orange: var(--color-accent-orange-strong);
+  --hotpot-orange-soft: var(--color-accent-orange);
+  --hotpot-white: var(--color-neutral-white);
+  --hotpot-black: var(--color-text-primary);
+  --hotpot-gray: var(--color-neutral-gray);
+  --hotpot-gray-light: var(--color-neutral-gray-light);
+  --hotpot-gray-border: var(--color-neutral-border);
+  --hotpot-overlay: var(--color-overlay);
+  --hotpot-overlay-poster: var(--color-overlay-poster);
+  --hotpot-shadow: var(--color-shadow);
   --hotpot-shadow-strong: rgba(0, 0, 0, 0.25);
-  --hotpot-cell-bg: rgba(237, 235, 222, 1);
-  --hotpot-bar: #2a2424;
-  --hotpot-btn-light: #faf7f2;
-
-  /* 兼容旧变量名 */
+  --hotpot-cell-bg: var(--color-surface-cell);
+  --hotpot-bar: var(--color-bar);
+  --hotpot-btn-light: var(--color-surface-paper);
   --shuai-width: var(--app-max-width);
-  --shuai-bg: var(--hotpot-red-main);
-  --shuai-bg-dark: var(--hotpot-red-dark);
-  --shuai-bar: var(--hotpot-bar);
-  --shuai-accent: var(--hotpot-orange-soft);
-  --shuai-accent-2: var(--hotpot-red-bright);
-  --shuai-gold: var(--hotpot-gold);
+  --shuai-bg: var(--app-bg);
+  --shuai-bg-dark: var(--app-bg-dark);
+  --shuai-bar: var(--color-bar);
+  --shuai-accent: var(--color-accent-orange);
+  --shuai-accent-2: var(--color-brand-red-bright);
+  --shuai-gold: var(--color-brand-gold);
   --shuai-radius: 16px;
-  --shuai-shadow: 0 4px 14px var(--hotpot-shadow);
-  --shuai-cell-bg: var(--hotpot-cell-bg);
+  --shuai-shadow: 0 4px 14px var(--color-shadow);
+  --shuai-cell-bg: var(--card-bg);
 }
 
 /* ── 基础与布局 ───────────────────────────────────────────────── */
@@ -204,36 +235,174 @@ footer { display: none !important; }
   50% { transform: translateY(6px); }
 }
 
-/* ── 步骤1/第一步：食材输入（方案 B：外层 ing-card-wrap 负责米色底）────────────────── */
-/* 方案 B：ui.py 中用 gr.Column(elem_classes=["ing-card-wrap"]) 包住食材区，此处对壳设米色 */
-#ing-card-wrap,
-#page-step0 [class*="ing-card-wrap"] {
-  background: var(--shuai-cell-bg) !important;
+/* ── Step0（第一步·输入食材）方案一：区块化 Accordion 小卡片，打破 Group 深嵌套蓝底 ── */
+/* 顶层：step0 下所有默认块透明，仅由 .step0-acc 提供米色卡片 */
+#page-step0 .block,
+#page-step0 .gr-group,
+#page-step0 .gr-form {
+  background: transparent !important;
+}
+/* 米色卡片：与 Step1 一致的 Accordion 小卡片，物理上避免主题 secondary 蓝 */
+#page-step0 .step0-acc,
+#page-step0 .gr-accordion.step0-acc,
+#page-step0 #step0-input-acc,
+#page-step0 #step0-recognition-acc {
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
   border-radius: var(--card-radius);
   padding: var(--card-padding);
   margin: var(--card-margin);
   box-shadow: var(--shuai-shadow);
   border: none;
-}
-/* 内层 Group 透明，透出外层米色 */
-#ing-card-group,
-[id^="ing-card-group"],
-[id*="ing-card-group"] {
-  background: transparent;
-  margin: 0;
-  border-radius: 0;
-  padding: 0;
-  border: none;
-  box-shadow: none;
   color: var(--hotpot-black);
 }
-#ing-card-group label,
-#ing-card-group .ing-card-title,
-#ing-card-group input,
-#ing-card-group .wrap,
-[id*="ing-card-group"] label,
-[id*="ing-card-group"] .ing-card-title,
-[id*="ing-card-group"] input { color: #111 !important; }
+/* Accordion 内部所有包裹层强制透明，透出卡片米色 */
+#page-step0 .step0-acc .block,
+#page-step0 .step0-acc .gr-group,
+#page-step0 .step0-acc .gr-form,
+#page-step0 .step0-acc [class*="svelte"],
+#page-step0 .step0-acc .wrap {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+/* 手风琴按钮：去除主题蓝，与 Step1 一致 */
+#page-step0 .gr-accordion.step0-acc > button,
+#page-step0 .step0-acc .gr-accordion > div:first-child {
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
+  color: var(--hotpot-black) !important;
+  border: none !important;
+}
+#page-step0 .gr-accordion.step0-acc > button:hover {
+  background-color: var(--color-surface-paper) !important;
+  filter: brightness(0.98);
+}
+/* 识别区：Audio/Image 控件及其包裹层强制透明/米色，消除 secondary 蓝 */
+#page-step0 .step0-识别区 .block,
+#page-step0 .step0-识别区 .gr-group,
+#page-step0 .step0-识别区 [class*="audio"],
+#page-step0 .step0-识别区 [class*="image"],
+#page-step0 .step0-识别区 .gr-box,
+#page-step0 #step0-recognition-acc .block,
+#page-step0 #step0-recognition-acc .gr-group,
+#page-step0 #step0-recognition-acc [class*="audio"],
+#page-step0 #step0-recognition-acc [class*="image"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: rgba(0,0,0,.08) !important;
+}
+/* 录入区：文本框/下拉/滑块透明底 + 黑色边框 */
+#page-step0 .step0-录入区 input,
+#page-step0 .step0-录入区 select,
+#page-step0 .step0-录入区 textarea,
+#page-step0 .step0-录入区 .gr-box,
+#page-step0 .step0-录入区 .gr-form,
+#page-step0 .step0-录入区 [class*="wrap"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 1px solid var(--hotpot-black) !important;
+  box-shadow: none !important;
+}
+/* 手动录入、搜索补全：去掉黑色边框，仅保留透明底 */
+#page-step0 #ing-name-tb,
+#page-step0 #ing-search-dd,
+#page-step0 #ing-text-col input,
+#page-step0 #ing-text-col select,
+#page-step0 #ing-text-col .gr-box,
+#page-step0 #ing-text-col .gr-form {
+  border: none !important;
+}
+/* 搜索补全下拉：展开的菜单列表无黑边；触发框保留黑边 */
+#page-step0 #ing-search-dd .gr-box,
+#page-step0 #ing-search-dd .gr-form,
+#page-step0 #ing-search-dd [class*="dropdown"] {
+  border: none !important;
+}
+/* 搜索补全：触发框（.wrap / .wrap-inner / .secondary-wrap）黑色边框 */
+#page-step0 #ing-search-dd .wrap,
+#page-step0 #ing-search-dd .wrap-inner,
+#page-step0 #ing-search-dd .secondary-wrap {
+  border: 1px solid var(--hotpot-black) !important;
+}
+/* 食材名称、搜索补全：搜索补全与其它控件为黑色；食材名称输入框内文字为白色 */
+#page-step0 #ing-search-dd,
+#page-step0 #ing-text-col input,
+#page-step0 #ing-text-col select {
+  color: var(--hotpot-black) !important;
+}
+/* 食材名称 textarea（如：毛肚、肥牛）：文字与占位符均为白色 */
+#page-step0 #ing-name-tb textarea,
+#page-step0 #ing-text-col textarea,
+#page-step0 .step0-录入区 textarea[data-testid="textbox"] {
+  color: var(--hotpot-white) !important;
+}
+#page-step0 #ing-name-tb textarea::placeholder,
+#page-step0 #ing-text-col textarea::placeholder {
+  color: var(--hotpot-white) !important;
+  opacity: 0.85;
+}
+#page-step0 #ing-name-tb::placeholder,
+#page-step0 #ing-text-col input::placeholder {
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+/* 库内默认提示中的「15 秒」等加粗文字改为黑色 */
+#page-step0 .step0-录入区 strong,
+#page-step0 #ing-text-col strong {
+  color: var(--hotpot-black) !important;
+}
+/* 涮煮时间/份数 Slider：label、数值、滑动条排成三行（DOM：label + div.tab-like-container + range） */
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 6px !important;
+}
+/* 拆开第一行：包含 label 与 .tab-like-container 的容器改为纵向 → 三行：label / 数值 / range */
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) > *:first-child,
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) > *:has(> label):has(> .tab-like-container) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 6px !important;
+}
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) .tab-like-container {
+  align-self: stretch !important;
+}
+#page-step0 .step0-录入区 .gr-form:has(input[type="range"]) .wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+#page-step0 .step0-acc input:focus,
+#page-step0 .step0-acc select:focus { border-color: var(--hotpot-gray) !important; outline: none !important; }
+#page-step0 .step0-acc label,
+#page-step0 .step0-acc .ing-card-title,
+#page-step0 .step0-acc input { color: #111 !important; }
+/* 加入清单、识图填入、点击上传、将图像拖入此处、删除等按钮与上传区文字改为黑色 */
+#page-step0 button,
+#page-step0 .gr-button,
+#page-step0 #btn-confirm-add,
+#page-step0 #btn-image-rec,
+#page-step0 #btn-voice-rec,
+#page-step0 .step0-识别区 label,
+#page-step0 .step0-识别区 span,
+#page-step0 .step0-识别区 p,
+#page-step0 .step0-识别区 [class*="drop"],
+#page-step0 .step0-识别区 [class*="upload"] {
+  color: var(--hotpot-black) !important;
+}
+/* 识图框内「将图像拖到此处」「点击上传」等文字改为黑色 */
+#page-step0 #ing-img-col label,
+#page-step0 #ing-img-col span,
+#page-step0 #ing-img-col p,
+#page-step0 #ing-img-col [class*="drop"],
+#page-step0 #ing-img-col [class*="upload"],
+#page-step0 #ing-img-col .gr-box,
+#page-step0 #ing-img-col .gr-form,
+#page-step0 #ing-img-col [class*="placeholder"],
+#page-step0 #ing-img-col [class*="text"] {
+  color: var(--hotpot-black) !important;
+}
 .ing-card-title {
   font-size: .78em;
   color: #111 !important;
@@ -242,61 +411,15 @@ footer { display: none !important; }
   margin-bottom: 10px;
   text-transform: uppercase;
 }
-#img-rec-group,
-[id^="img-rec-group"],
-[id*="img-rec-group"] {
-  background: var(--shuai-cell-bg);
-  margin: 0 var(--card-margin) 10px;
-  border-radius: var(--card-radius-md);
-  padding: 0 14px 14px;
-  box-shadow: var(--shuai-shadow);
-  color: var(--hotpot-black);
-}
-#img-rec-group label,
-[id*="img-rec-group"] label { color: #111 !important; }
-/* 第一步：食材名称/搜索补全/涮煮时间/份数/语音/识图 强制白底去橙（覆盖 Gradio 主题 primary 橙） */
-/* Gradio 主题变量名用下划线，如 input_background_fill、block_background_fill */
-#page-step0 #ing-card-group,
-#page-step0 #img-rec-group {
-  --input_background_fill: var(--hotpot-white) !important;
-  --block_background_fill: var(--hotpot-white) !important;
-  --input-background-fill: var(--hotpot-white) !important;
-  --background-fill-primary: var(--hotpot-white) !important;
-  --background-fill-secondary: var(--hotpot-white) !important;
-}
-#ing-card-group input,
-#ing-card-group select,
-#ing-card-group textarea,
-#ing-card-group .gr-box,
-#ing-card-group .gr-form,
-#ing-card-group [class*="wrap"],
-[id*="ing-card-group"] input,
-[id*="ing-card-group"] select,
-[id*="ing-card-group"] .gr-box,
-[id*="ing-card-group"] .gr-form,
-#img-rec-group input,
-#img-rec-group select,
-#img-rec-group textarea,
-#img-rec-group .gr-box,
-#img-rec-group .gr-form,
-[id*="img-rec-group"] .gr-box,
-[id*="img-rec-group"] .gr-form {
-  background: var(--hotpot-white) !important;
-  background-color: var(--hotpot-white) !important;
-  border-color: var(--hotpot-gray-light) !important;
-  box-shadow: none !important;
-}
-#ing-card-group input:focus,
-#ing-card-group select:focus,
-#img-rec-group input:focus { border-color: var(--hotpot-gray) !important; outline: none !important; }
 #merchant-status { margin: 0 var(--card-margin); color: var(--hotpot-white); }
 
-/* 第一步：仅步骤内文案/控件颜色，米色只用在 #ing-card-group / #img-rec-group（见上） */
+/* Step0：步骤内文案/控件颜色 */
 #page-step0 label,
 #page-step0 input,
 #page-step0 .label,
 #page-step0 p,
 #page-step0 span { color: var(--hotpot-black); }
+/* 步骤标题包裹层：保持透明，不设实色 background，避免与 step 背景冲突 */
 .shuai-step-header-wrap { background: transparent; }
 #basket-bar-row > div,
 #basket-bar-row [class*="block"] { background: transparent; }
@@ -307,6 +430,9 @@ footer { display: none !important; }
   width: calc(100% - 2 * var(--card-margin));
   max-width: none;
   box-sizing: border-box;
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
+  color: var(--hotpot-black) !important;
 }
 #step0-next-row { margin: 16px var(--card-margin) 8px; justify-content: flex-end; }
 #ing-confirm-row { margin-top: 10px; gap: 10px; }
@@ -548,6 +674,31 @@ footer { display: none !important; }
 #page-step1 span { color: var(--hotpot-black); }
 #page-step1 .pref-acc .gr-group { background: var(--shuai-cell-bg); }
 
+/* ── 针对 step1 手风琴按钮精准打击，移除悬停/聚焦时的蓝色 ── */
+#page-step1 .gr-accordion button {
+  background-color: var(--card-bg) !important;
+  color: var(--hotpot-black) !important;
+  border: none !important;
+}
+#page-step1 .gr-accordion button:hover {
+  background-color: var(--color-surface-paper) !important;
+  filter: brightness(0.95);
+}
+#page-step1 .pref-acc,
+#page-step1 .pref-radio {
+  background-color: var(--card-bg) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+#page-step1 .pref-radio label:has(input:checked) {
+  background: linear-gradient(135deg, var(--color-accent-orange), var(--color-brand-red-bright)) !important;
+}
+/* 移除 Radio 容器周围的蓝色残影 */
+#page-step1 .pref-radio {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
 /* 第二步：隐藏组件类型（仅隐藏控件顶部的 type 标签，不隐藏选项文字） */
 #page-step1 .pref-radio > .label,
 #page-step1 .pref-radio > .gr-label,
@@ -567,6 +718,17 @@ footer { display: none !important; }
 /* 手风琴标题保持显示 */
 #page-step1 .pref-acc > div:first-child,
 #page-step1 .gr-accordion > div:first-child { display: flex !important; visibility: visible !important; }
+
+/* ── 针对 step3 加载界面的背景覆盖（生成方案时的 loading 遮罩）── */
+.loading-container,
+.load-background,
+div[class*="loading"] {
+  background-color: rgba(163, 21, 21, 0.8) !important; /* 半透明火锅红 */
+}
+.loading-container svg circle {
+  stroke: var(--color-brand-gold) !important;
+}
+
 #plan-scroll-wrap {
   background: var(--shuai-cell-bg);
   margin: var(--card-margin);
@@ -656,6 +818,7 @@ footer { display: none !important; }
   z-index: 9999;
   pointer-events: none;
   background: rgba(255, 140, 0, 0.35);
+  animation: hotpot-flash-fade var(--flash-duration, 1s) ease-out forwards;
 }
 @keyframes hotpot-flash-fade {
   0% { opacity: 1; }

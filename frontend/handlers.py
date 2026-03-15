@@ -364,8 +364,9 @@ def start_eating(app_state):
     sauce_lines = [f"- **{food}**：{' / '.join(sauces)}" for food, sauces in (plan_data.get("sauce_recommendations") or {}).items()]
     sauce = "\n".join(sauce_lines) if sauce_lines else "无"
     bottom_md = head + f"### 🚨 安全提醒\n{safety}\n\n### 💚 健康贴士\n{health}\n\n### 🥢 蘸料推荐\n{sauce}"
-    initial_reminder = "<p style='color:#aaa;text-align:center;padding:32px;font-size:.95em'>⏱ 计时已启动，请按方案顺序开始下锅。</p>"
-    new_state = app_state.with_step(3).with_timer_start(start_time)
+    initial_reminder = "<p style='color:#aaa;text-align:center;padding:32px;font-size:.95em'>⏸ 已暂停，点击「继续」开始计时。</p>"
+    # 进入计时页时默认暂停，用户点击「继续」后再开始计时
+    new_state = app_state.with_step(3).with_timer_start(start_time).with_timer_paused(0, start_time)
     return (new_state, gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=True),
             bottom_md, initial_reminder, "")
 
@@ -413,22 +414,20 @@ def boiling_detect_callback(img_path):
 
 
 # ══════════════════════════════════════════════════════════════════
-# 新增功能：暂停 / 恢复计时器
+# 暂停 / 恢复计时器
 # ══════════════════════════════════════════════════════════════════
 
 def pause_timer(app_state):
-    """暂停计时器：冻结当前 elapsed 并记录暂停开始时刻。
-    返回 (new_app_state,)。"""
+    """暂停计时器：冻结当前 elapsed 并记录暂停开始时刻。返回 (new_app_state,)。"""
     import time as _time
     from frontend.state import AppState
     app_state = app_state or AppState()
-    if app_state.timer_paused:
-        # 已经暂停，不重复操作
+    if getattr(app_state, "timer_paused", False):
         return (app_state,)
-    if app_state.timer_start_time <= 0:
+    if getattr(app_state, "timer_start_time", 0) <= 0:
         return (app_state,)
     now = _time.time()
-    elapsed = int(now - app_state.timer_start_time - app_state.total_paused_duration)
+    elapsed = int(now - app_state.timer_start_time - getattr(app_state, "total_paused_duration", 0))
     new_state = app_state.with_timer_paused(
         paused_elapsed=max(0, elapsed),
         pause_began_at=now,
@@ -437,82 +436,72 @@ def pause_timer(app_state):
 
 
 def resume_timer(app_state):
-    """恢复计时器：将本次暂停时长累加到 total_paused_duration。
-    返回 (new_app_state,)。"""
+    """恢复计时器：将本次暂停时长累加到 total_paused_duration。返回 (new_app_state,)。"""
     import time as _time
     from frontend.state import AppState
     app_state = app_state or AppState()
-    if not app_state.timer_paused:
-        # 未暂停，不操作
+    if not getattr(app_state, "timer_paused", False):
         return (app_state,)
     now = _time.time()
-    pause_duration = now - app_state.pause_began_at if app_state.pause_began_at > 0 else 0
+    pause_duration = now - getattr(app_state, "pause_began_at", 0) if getattr(app_state, "pause_began_at", 0) > 0 else 0
     new_state = app_state.with_timer_resumed(added_paused_duration=pause_duration)
     return (new_state,)
 
 
 def toggle_pause_timer(app_state):
-    """切换暂停/恢复状态（方便绑定到单个按钮）。
-    返回 (new_app_state,)。"""
+    """切换暂停/恢复状态。返回 (new_app_state,)。"""
     from frontend.state import AppState
     app_state = app_state or AppState()
-    if app_state.timer_paused:
+    if getattr(app_state, "timer_paused", False):
         return resume_timer(app_state)
-    else:
-        return pause_timer(app_state)
+    return pause_timer(app_state)
 
 
 # ══════════════════════════════════════════════════════════════════
-# 新增功能：剔除 / 恢复食材计时
+# 剔除 / 恢复食材计时
 # ══════════════════════════════════════════════════════════════════
 
 def exclude_ingredient_from_timer(app_state, ingredient_name: str):
-    """将指定食材加入不计时列表。
-    返回 (new_app_state,)。"""
+    """将指定食材加入不计时列表。返回 (new_app_state,)。"""
     from frontend.state import AppState
     app_state = app_state or AppState()
     name = (ingredient_name or "").strip()
     if not name:
         return (app_state,)
-    new_state = app_state.with_ingredient_excluded(name)
-    return (new_state,)
+    return (app_state.with_ingredient_excluded(name),)
 
 
 def include_ingredient_in_timer(app_state, ingredient_name: str):
-    """将指定食材从不计时列表移除（恢复计时）。
-    返回 (new_app_state,)。"""
+    """将指定食材从不计时列表移除。返回 (new_app_state,)。"""
     from frontend.state import AppState
     app_state = app_state or AppState()
     name = (ingredient_name or "").strip()
     if not name:
         return (app_state,)
-    new_state = app_state.with_ingredient_included(name)
-    return (new_state,)
+    return (app_state.with_ingredient_included(name),)
 
 
 def toggle_ingredient_timer(app_state, ingredient_name: str):
-    """切换食材是否参与计时（已排除→恢复，未排除→剔除）。
-    返回 (new_app_state,)。"""
+    """切换食材是否参与计时。返回 (new_app_state,)。"""
     from frontend.state import AppState
     app_state = app_state or AppState()
     name = (ingredient_name or "").strip()
     if not name:
         return (app_state,)
-    if name in (app_state.excluded_ingredients or []):
+    excluded = getattr(app_state, "excluded_ingredients", []) or []
+    if name in excluded:
         return include_ingredient_in_timer(app_state, name)
-    else:
-        return exclude_ingredient_from_timer(app_state, name)
+    return exclude_ingredient_from_timer(app_state, name)
 
 
 def get_excludable_ingredients(app_state):
-    """获取当前方案中所有食材名称列表（供前端渲染剔除选项用）。
-    返回 [(name, is_excluded), ...]。"""
+    """获取当前方案中所有食材及是否已剔除。返回 [(name, is_excluded), ...]。"""
     from frontend.state import AppState
     app_state = app_state or AppState()
     plan_data = app_state.plan_data
     if not plan_data or not plan_data.get("timeline"):
         return []
     items = plan_data["timeline"].get("items") or []
-    excluded_set = set(app_state.excluded_ingredients or [])
+    excluded_set = set(getattr(app_state, "excluded_ingredients", []) or [])
     return [(it.get("ingredient_name", ""), it.get("ingredient_name", "") in excluded_set) for it in items]
 
